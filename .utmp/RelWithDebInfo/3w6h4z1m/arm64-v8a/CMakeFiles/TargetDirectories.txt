@@ -1,0 +1,5 @@
+E:/AR/VCS_Android/.utmp/RelWithDebInfo/3w6h4z1m/arm64-v8a/CMakeFiles/edit_cache.dir
+E:/AR/VCS_Android/.utmp/RelWithDebInfo/3w6h4z1m/arm64-v8a/CMakeFiles/rebuild_cache.dir
+E:/AR/VCS_Android/.utmp/RelWithDebInfo/3w6h4z1m/arm64-v8a/GameActivity/CMakeFiles/game.dir
+E:/AR/VCS_Android/.utmp/RelWithDebInfo/3w6h4z1m/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
+E:/AR/VCS_Android/.utmp/RelWithDebInfo/3w6h4z1m/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir
