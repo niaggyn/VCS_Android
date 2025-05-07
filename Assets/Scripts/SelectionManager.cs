@@ -15,6 +15,9 @@ public class SelectionManager : MonoBehaviour
 
     private List<GameObject> previouslyHighlighted = new List<GameObject>();
     private Outline currentOutline;
+    private Material originalMaterial; // Store the original material
+    public Material highlightMaterial; // Material with the outline shader
+    public Material transparentMaterial; // Material with the outline shader
 
     void Awake()
     {
@@ -23,6 +26,8 @@ public class SelectionManager : MonoBehaviour
         else
             Destroy(gameObject);
     }
+
+
 
     public void SelectLayer(GameObject layer)
     {
@@ -33,9 +38,25 @@ public class SelectionManager : MonoBehaviour
             Debug.LogWarning("Nenhum objeto foi selecionado para escolher uma camada.");
             return;
         }
-
         selectedLayer = layer;
-        HighlightObject(layer, Color.red);
+
+
+        foreach (Transform child in selectedObject.transform)
+        {
+            Renderer renderer = child.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                if (child.gameObject == layer)
+                {
+                    renderer.material = transparentMaterial; // Mantém destaque
+                }
+                else if (validLayer(child))
+                {
+                    renderer.material = transparentMaterial; // Aplicar transparência
+                }
+            }
+        }
+
         Debug.Log("Camada selecionada: " + layer.name);
     }
 
@@ -46,16 +67,18 @@ public class SelectionManager : MonoBehaviour
         SetAllLayersActive(true);
     }
 
+    // Método para destacar o objeto inteiro
     public void SelectWholeObject(GameObject obj)
     {
         ClearSelection();
         selectedObject = obj;
-        HighlightObject(obj, Color.yellow);
+        ApplyOutline(obj); // Aplica o contorno ao objeto inteiro
         selectedLayer = null; // Reseta a camada selecionada
         layerSelectionActive = false; // Desativa o modo de seleção de camada
         Debug.Log("Objeto inteiro selecionado: " + obj.name);
     }
 
+    // Método para destacar uma camada específica
     public GameObject GetSelectedObject()
     {
         return selectedObject;
@@ -138,6 +161,8 @@ public class SelectionManager : MonoBehaviour
         selectedObject = null;
         selectedLayer = null;
         layerSelectionActive = false;
+
+        RestoreLayerTransparency(); // Restaura os materiais originais
     }
     public void SetAllLayersActive(bool active)
     {
@@ -162,15 +187,24 @@ public class SelectionManager : MonoBehaviour
 
         foreach (Transform child in selectedObject.transform)
         {
-            if (child.name == layerName)
+            Renderer renderer = child.GetComponent<Renderer>();
+            if (renderer != null)
             {
-                child.gameObject.SetActive(true); // Ativa a camada correspondente
-                selectedLayer = child.gameObject;
-                Debug.Log("Camada ativada: " + child.name);
-            }
-            else
-            {
-                child.gameObject.SetActive(false); // Desativa outras camadas
+                foreach (Material material in renderer.materials)
+                {
+                    if (child.name == layerName)
+                    {
+                        // Destaca a camada selecionada (restaura opacidade total)
+                        SetMaterialTransparency(material, 1.0f); // Totalmente opaco
+                        selectedLayer = child.gameObject;
+                        Debug.Log("Camada ativada: " + child.name);
+                    }
+                    else
+                    {
+                        // Torna as outras camadas transparentes
+                        SetMaterialTransparency(material, 0.3f); // Transparência ajustada
+                    }
+                }
             }
         }
     }
@@ -321,7 +355,7 @@ public class SelectionManager : MonoBehaviour
         Vector3 scale = obj.transform.lossyScale;
         float volume = GetVolume(obj);
         float area = GetArea(obj);
-         
+
 
         Vector3 realDimensions = GetDimensionsRealWorld(obj);
         float realVolume = GetVolumeRealWorld(obj);
@@ -345,6 +379,70 @@ public class SelectionManager : MonoBehaviour
             realArea,
             scale
         );
+    }
+
+    public void ApplyOutline(GameObject obj)
+    {
+        var renderer = obj.GetComponent<Renderer>();
+        if (renderer != null)
+            originalMaterial = renderer.material; // Store the original material
+        renderer.material = transparentMaterial; // Material com o shader de contorno
+        renderer.material = transparentMaterial; // Material com o shader de contorno
+    }
+
+    public void RestoreLayerTransparency()
+    {
+        if (selectedObject == null) return;
+
+        foreach (Transform child in selectedObject.transform)
+        {
+            Renderer renderer = child.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                foreach (Material material in renderer.materials)
+                {
+                    SetMaterialTransparency(material, 1.0f); // Restaura opacidade total
+                }
+            }
+        }
+    }
+
+    private void SetMaterialTransparency(Material material, float alpha)
+    {
+        if (material.HasProperty("_Color"))
+        {
+            Color color = material.color;
+            color.a = alpha; // Ajusta o canal alfa
+            material.color = color;
+
+            // Certifique-se de que o material está configurado para renderizar transparência
+            if (alpha < 1.0f)
+            {
+                material.SetFloat("_Mode", 6); // Modo transparente
+                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                material.SetInt("_ZWrite", 0);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.EnableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = 3000;
+            }
+            else
+            {
+                material.SetFloat("_Mode", 0); // Modo opaco
+                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+                material.SetInt("_ZWrite", 1);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.DisableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = -1;
+            }
+        }
+        else
+        {
+            Debug.LogWarning("O material não possui a propriedade '_Color'.");
+        }
     }
 
 

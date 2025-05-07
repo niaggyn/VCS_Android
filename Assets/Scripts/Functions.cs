@@ -2,16 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
-using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Functions : MonoBehaviour
 {
 
+    public ARSessionController arSessionController; // Reference to the ARSessionController script
+
     public Button selectButton; // Reference to the button component
     public Button infoButton; // Reference to the button component
     private bool isDragging = false;
+
 
     public bool isSelected = false; // Flag to track if the button is selected
     private bool isWaitingForSecondClick = false; // Flag to track if waiting for a second click
@@ -25,10 +28,17 @@ public class Functions : MonoBehaviour
     public GameObject zoomObjectButtonIcon; // Reference to the RawImage component
     public GameObject newScanButtonIcon; // Reference to the RawImage component
     public GameObject dropdownMenu; // Reference to the dropdown menu
+    public GameObject resertObjectButtonIcon; // Reference to the RawImage component
     public TMP_Text infoText; // Reference to the TextMeshPro component
     public ImageTracker trackedImageHandler;
     public SelectionManager selectionManager; // Reference to the SelectionManager script
     private List<string> validTags = new List<string> { "paredes", "telhados", "pisos", "colunas", "portas", "janelas", "forros" }; // Adicione as tags válidas aqui
+
+    private Vector3 originalPosition; // Variável para armazenar a posição original do objeto
+    private Quaternion originalRotation; // Variável para armazenar a rotação original do objeto
+    private Vector3 originalScale;
+    private bool isOriginalPositionStored = false; // Flag para verificar se a posição original já foi armazenada
+
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -38,7 +48,8 @@ public class Functions : MonoBehaviour
             selectButton.onClick.AddListener(ClickSelect);
             infoButton.onClick.AddListener(infoShow);
         }
-        infoText.text = "para iniciar foque a camera em uma marca"; // Reset the info text 
+        infoText.text = "para iniciar foque a camera em uma marca"; // Reset the info text
+        resertObjectButtonIcon.gameObject.SetActive(false); // Desativa o botão de resetar objeto 
     }
 
     // Update is called once per frame
@@ -82,8 +93,8 @@ public class Functions : MonoBehaviour
                     Debug.Log("Objeto inteiro selecionado: " + hitObj.name);
                     // Selecionar o objeto inteiro
                     SelectionManager.Instance.SelectWholeObject(hitObj);
-                    infoText.text = "Objeto selecionado: " + hitObj.name;
 
+                    infoText.text = "Objeto selecionado: " + hitObj.name;
                     isWaitingForSecondClick = false; // Desativa a espera para o segundo clique
                 }
                 else
@@ -105,6 +116,7 @@ public class Functions : MonoBehaviour
                 {
                     // Seleciona o objeto inteiro
                     SelectionManager.Instance.SelectWholeObject(hit.transform.gameObject);
+                    StoreOriginalPosition(hitObj); // Armazena a posição original do objeto
                     infoText.text = "Objeto selecionado: " + hit.transform.name;
                     Debug.Log("Objeto selecionado: " + hit.transform.name);
                     activedButtonEffect(selectObjectLayerButtonIcon); // Ativa o efeito do botão de selecionar camada
@@ -137,9 +149,14 @@ public class Functions : MonoBehaviour
                 GameObject selected = SelectionManager.Instance.GetSelectedObject();
                 if (selected != null)
                 {
+
+
                     // Rotaciona o objeto no próprio eixo local
-                    selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.Self); // Rotação no eixo Y
-                    selected.transform.Rotate(Vector3.right, -mouseY * rotationSpeed * Time.deltaTime, Space.Self); // Rotação no eixo X
+                    selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.World);
+                    //selected.transform.Rotate(Vector3.right, -mouseY * rotationSpeed * Time.deltaTime, Space.Self); // Rotação no eixo X
+
+                    resertObjectButtonIcon.gameObject.SetActive(true); // Ativa o botão de resetar objeto
+
                 }
             }
             else if (Input.GetMouseButtonUp(0)) // Quando o botão do mouse é solto
@@ -152,11 +169,26 @@ public class Functions : MonoBehaviour
 
 
         // Verifica se o objeto foi instanciado
-        if (trackedImageHandler.isObjectInstantiated)
+        if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
+
         {
             // Ativa o efeito do botão de selecionar objeto inteiro
             activedButtonEffect(selectObjectButtonIcon); // Ativa o efeito do botão de selecionar objeto inteiro.
-            feedBackInfo(infoBoxBackground); // Altera a cor do botão de selecionar objeto inteiro
+            feedBackInfo(infoBoxBackground, Color.green); // Altera a cor do botão de selecionar objeto inteiro
+            infoText.color = Color.black; // Altera a cor do texto de informações
+        }
+        else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
+        {
+            // Ativa o efeito do botão de selecionar objeto inteiro
+
+            feedBackInfo(infoBoxBackground, Color.blue); // Altera a cor do botão de selecionar objeto inteiro
+            infoText.color = Color.white; // Altera a cor do texto de informações
+        }
+        if (!trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
+        {
+            // Desativa o efeito do botão de selecionar objeto inteiro
+            feedBackInfo(infoBoxBackground, Color.black); // Altera a cor do botão de selecionar objeto inteiro
+            infoText.color = Color.white; // Altera a cor do texto de informações
         }
 
     }
@@ -213,6 +245,8 @@ public class Functions : MonoBehaviour
     {
         Debug.Log("Home button clicked!, o cenario deve ser resetado"); // Log to the console
         clearVirtualizedObject(); // Call the method to clear the virtualized object
+        arSessionController.StartAR(); // Stop the AR session
+        disableALlButtonEffect(); // Call the method to disable all button effects
         infoText.text = "para iniciar foque a camera em uma marca"; // Reset the info text 
     }
 
@@ -220,6 +254,7 @@ public class Functions : MonoBehaviour
     {
         Debug.Log("Prefab serao desativados!"); // Log to the console
         clearVirtualizedObject(); // Call the method to clear the virtualized object
+        disableALlButtonEffect(); // Call the method to disable all button effects
         Debug.Log("New scan initiated!");
     }
 
@@ -228,6 +263,8 @@ public class Functions : MonoBehaviour
         // Desativa todos os objetos desativados
         Debug.Log("Prefab deactivated! Ativando rotina do rastreador"); // Log to the console
         trackedImageHandler.OnNewScan(); // Call the method to clear the virtualized object
+        dropdownMenu.SetActive(false); // Desativa o menu suspenso
+
     }
 
     public bool checkTrack()
@@ -242,7 +279,6 @@ public class Functions : MonoBehaviour
             return false; // Return false if the prefab is not instantiated
         }
     }
-
 
 
     public void rotateButton()
@@ -319,18 +355,18 @@ public class Functions : MonoBehaviour
         }
     }
 
-    public void feedBackInfo(GameObject gameObject)
-    {
-        Image rawImage = gameObject.GetComponent<Image>();
-        if (rawImage == null)
-        {
-            Debug.LogWarning("RawImage não encontrado no GameObject alvo!");
-            return; // Sai do método se o RawImage não for encontrado
-        }
+    
 
-        Color newColor = Color.green; // Define a nova cor
-        rawImage.color = newColor; // Aplica a nova cor
-        Debug.Log("Cor do botão alterada para: " + newColor); // Log para depuração
+    public void feedBackInfo(GameObject gameObject, Color newCor)
+    {
+        //Color color = gameObject.GetComponent<Image>().color;
+
+
+        Color cor = newCor; // Define a cor verde
+
+        gameObject.GetComponent<Image>().color = cor; // Aplica a nova cor
+
+        //Debug.Log("Cor do botão alterada para: " + cor); // Log para depuração
     }
 
     public void dropdownMenuButton(ImageTracker imageTracker)
@@ -423,4 +459,60 @@ public class Functions : MonoBehaviour
         return false;
     }
 
+    public void ResetObject()
+    {
+        Debug.Log("Resetando objeto selecionado para a posição original!");
+        GameObject selected = SelectionManager.Instance.GetSelectedObject();
+        if (selected != null)
+        {
+            if (isOriginalPositionStored)
+            {
+                selected.transform.position = originalPosition;
+                selected.transform.rotation = originalRotation;
+                selected.transform.localScale = originalScale;
+                Debug.Log("Objeto resetado para a posição original: " + originalPosition + ", Rotação: " + originalRotation + ", Escala: " + originalScale);
+            }
+            else
+            {
+                Debug.LogWarning("A posição original do objeto não foi armazenada.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Nenhum objeto está selecionado para resetar.");
+        }
+    }
+
+    public void StoreOriginalPosition(GameObject selected)
+    {
+        if (!isOriginalPositionStored && selectionManager.HasSelection())
+        {
+            originalPosition = selected.transform.position;
+            originalRotation = selected.transform.rotation;
+            originalScale = selected.transform.localScale;
+            isOriginalPositionStored = true; // Marca que a posição original foi armazenada
+            Debug.Log("Posição original armazenada: " + originalPosition + ", Rotação: " + originalRotation + ", Escala: " + originalScale);
+        }
+    }
+
+    public void disableALlButtonEffect()
+    {
+        // Desativa todos os efeitos dos botões
+        Color color = Color.white; // Define a cor padrão (branca)
+        selectObjectLayerButtonIcon.GetComponent<RawImage>().color = color;
+        selectObjectButtonIcon.GetComponent<RawImage>().color = color;
+        rotationObjectButtonIcon.GetComponent<RawImage>().color = color;
+        infoObjectButtonIcon.GetComponent<RawImage>().color = color;
+        zoomObjectButtonIcon.GetComponent<RawImage>().color = color;
+        newScanButtonIcon.GetComponent<RawImage>().color = color;
+    }
+
 }
+
+
+
+
+
+
+
+

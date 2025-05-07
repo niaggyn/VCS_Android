@@ -54,6 +54,7 @@ public class ImageTracker : MonoBehaviour
             Debug.Log("Marcador encontrado: " + trackedImage.referenceImage.name);
             foreach (var arPrefab in ArPrefabs)
             {
+                Debug.Log("Prefab encontrado: " + arPrefab.name);
                 if (trackedImage.referenceImage.name == arPrefab.name)
                 {
                     // Verifica se o prefab já foi instanciado
