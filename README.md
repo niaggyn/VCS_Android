@@ -1,1 +1,1 @@
-Port do App de Realidade Aumentada VCS (Visualizador de Construção Simulada) referente ao Projeto de Pesquisa (PIBIC 24/25 IFMA).
+Port do App de Realidade Aumentada VCS (Visualizador de Construção Simulada) referente ao Projeto de Pesquisa "Aplicações Tecnológicas de RA (Realidade Aumentada) na Construção Civil" (EDITAL PRPGI Nº 18/2024 - PIBIC ENSINO SUPERIOR 2024/2025 - Edital de Pesquisa). 
