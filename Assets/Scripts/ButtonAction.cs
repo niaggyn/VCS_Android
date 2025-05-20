@@ -28,7 +28,7 @@ public class ButtonAction : MonoBehaviour
         // Hide the button initially
         close.gameObject.SetActive(false);
         canvas.gameObject.SetActive(false); // Set the canvas to be inactive
-
+        
         // Add a listener to the trigger button to show this button
         if (triggerButton != null)
         {

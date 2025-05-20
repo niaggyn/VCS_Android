@@ -1,0 +1,9 @@
+Nome: Projeto Residencial Familiar
+Área: 49.640m²
+Elevação: 0.15m
+Quantidade de Cômodos: 5
+Escala: 50
+Perímetro: 28.2m
+Dimensões: 7.3m x 6,8m
+Portas: 5
+Janelas: 5

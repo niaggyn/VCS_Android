@@ -7,11 +7,10 @@ public class ObjectInfo
     public float Volume;
     public float Area;
 
-    public ObjectInfo(string name, Vector3 dimensions, float volume, float area, Vector3 scale)
+    public ObjectInfo(string name, Vector3 dimensions, float area, Vector3 scale)
     {
         Name = name;
         Dimensions = dimensions;
-        Volume = volume;
         Area = area;
         Scale = scale;
     }

@@ -171,8 +171,20 @@ public class SelectionManager : MonoBehaviour
             foreach (Transform child in selectedObject.transform)
             {
                 child.gameObject.SetActive(validLayer(child));
+
+                /*
+                Renderer renderer = child.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    foreach (Material mat in renderer.materials)
+                    {
+                        SetMaterialTransparency(mat, 1.0f); // Totalmente opaco
+                    }
+                }
+                */
             }
         }
+
     }
 
 
@@ -187,6 +199,18 @@ public class SelectionManager : MonoBehaviour
 
         foreach (Transform child in selectedObject.transform)
         {
+            if (child.name == layerName)
+            {
+                child.gameObject.SetActive(true);
+                selectedLayer = child.gameObject;
+                Debug.Log("Camada ativada: " + child.name);
+            }
+            else
+            {
+                child.gameObject.SetActive(false);
+            }
+
+            /*
             Renderer renderer = child.GetComponent<Renderer>();
             if (renderer != null)
             {
@@ -206,6 +230,7 @@ public class SelectionManager : MonoBehaviour
                     }
                 }
             }
+            */
         }
     }
 
@@ -349,11 +374,16 @@ public class SelectionManager : MonoBehaviour
 
     }
 
+    public GameObject GetInstantiatedObject()
+    {
+        return selectedObject;
+    }
+
     public ObjectInfo DisplayObjectInfoReal(GameObject obj)
     {
         Vector3 dimensions = GetDimensions(obj);
         Vector3 scale = obj.transform.lossyScale;
-        float volume = GetVolume(obj);
+        //float volume = GetVolume(obj);
         float area = GetArea(obj);
 
 
@@ -365,7 +395,6 @@ public class SelectionManager : MonoBehaviour
             $"INFORMAÇÕES DO OBJETO:\n" +
             $"(Escala atual: {obj.transform.lossyScale})\n\n" +
             $"🔹 Dimensões: {dimensions.x:F2} x {dimensions.y:F2} x {dimensions.z:F2} (unidades reduzidas)\n" +
-            $"🔹 Volume: {volume:F2} (unidades³ reduzidas)\n" +
             $"🔹 Área: {area:F2} (unidades² reduzidas)\n\n" +
             $"📏 Dimensões reais: {realDimensions.x:F2} x {realDimensions.y:F2} x {realDimensions.z:F2} (unidades reais)\n" +
             $"📦 Volume real: {realVolume:F2} (unidades³)\n" +
@@ -375,7 +404,6 @@ public class SelectionManager : MonoBehaviour
         return new ObjectInfo(
             obj.name,
             realDimensions,
-            realVolume,
             realArea,
             scale
         );
@@ -409,16 +437,42 @@ public class SelectionManager : MonoBehaviour
 
     private void SetMaterialTransparency(Material material, float alpha)
     {
-        if (material.HasProperty("_Color"))
+        // Compatível com URP Lit
+        if (material.HasProperty("_BaseColor"))
         {
-            Color color = material.color;
-            color.a = alpha; // Ajusta o canal alfa
-            material.color = color;
+            Color color = material.GetColor("_BaseColor");
+            color.a = alpha;
+            material.SetColor("_BaseColor", color);
 
-            // Certifique-se de que o material está configurado para renderizar transparência
             if (alpha < 1.0f)
             {
-                material.SetFloat("_Mode", 6); // Modo transparente
+                // Transparent
+                material.SetFloat("_Surface", 1); // 0=Opaque, 1=Transparent
+                material.SetFloat("_Blend", 0); // Alpha blending
+                material.SetFloat("_ZWrite", 0);
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            else
+            {
+                // Opaque
+                material.SetFloat("_Surface", 0);
+                material.SetFloat("_Blend", 0);
+                material.SetFloat("_ZWrite", 1);
+                material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
+            }
+        }
+        else if (material.HasProperty("_Color"))
+        {
+            // Fallback para materiais padrão
+            Color color = material.color;
+            color.a = alpha;
+            material.color = color;
+
+            if (alpha < 1.0f)
+            {
+                material.SetFloat("_Mode", 3); // Transparent
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 material.SetInt("_ZWrite", 0);
@@ -429,7 +483,7 @@ public class SelectionManager : MonoBehaviour
             }
             else
             {
-                material.SetFloat("_Mode", 0); // Modo opaco
+                material.SetFloat("_Mode", 0); // Opaque
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
                 material.SetInt("_ZWrite", 1);
@@ -441,7 +495,7 @@ public class SelectionManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("O material não possui a propriedade '_Color'.");
+            Debug.LogWarning("O material não possui a propriedade '_BaseColor' ou '_Color'.");
         }
     }
 

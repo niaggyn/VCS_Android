@@ -28,14 +28,15 @@ public class Functions : MonoBehaviour
     public GameObject zoomObjectButtonIcon; // Reference to the RawImage component
     public GameObject newScanButtonIcon; // Reference to the RawImage component
     public GameObject dropdownMenu; // Reference to the dropdown menu
+    public GameObject scannerAnimation; // Reference to the scanner animation
     public GameObject resertObjectButtonIcon; // Reference to the RawImage component
     public TMP_Text infoText; // Reference to the TextMeshPro component
     public ImageTracker trackedImageHandler;
     public SelectionManager selectionManager; // Reference to the SelectionManager script
     private List<string> validTags = new List<string> { "paredes", "telhados", "pisos", "colunas", "portas", "janelas", "forros" }; // Adicione as tags válidas aqui
 
-    private Vector3 originalPosition; // Variável para armazenar a posição original do objeto
-    private Quaternion originalRotation; // Variável para armazenar a rotação original do objeto
+    private Vector3 originalPosition; // Variável para armazenar a posição original do Objeto
+    private Quaternion originalRotation; // Variável para armazenar a rotação original do Objeto
     private Vector3 originalScale;
     private bool isOriginalPositionStored = false; // Flag para verificar se a posição original já foi armazenada
 
@@ -48,95 +49,92 @@ public class Functions : MonoBehaviour
             selectButton.onClick.AddListener(ClickSelect);
             infoButton.onClick.AddListener(infoShow);
         }
-        infoText.text = "para iniciar foque a camera em uma marca"; // Reset the info text
-        resertObjectButtonIcon.gameObject.SetActive(false); // Desativa o botão de resetar objeto 
+        infoText.text = "para iniciar foque a camera em uma marca";
+        DeactivateAllButtonsExceptHome();
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (checkTrack())
+        // Situação: Objeto não foi iniciado
+        if (!checkTrack())
         {
-
-            if (isAnyButtonClicked)
-            {
-                infoText.text = "Selecione a interacao desejada";
-            }
-            else if (isWaitingForSecondClick)
-            {
-                infoText.text = "Clique no objeto para selecioná-lo.";
-            }
-
-
+            infoText.text = "Para iniciar foque a camera em um MARCADOR";
+            DeactivateAllButtonsExceptHome();
         }
-        if (isWaitingForSecondClick && secondClick && Input.GetMouseButtonDown(0)) // Detecta o segundo clique
+        else
         {
-            Debug.Log("Segundo clique detectado. Verificando objeto...");
+            // Quando o Objeto é instanciado e nenhum Objeto está selecionado
+            if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
+            {
+                ActivateScanAndSelectButtons();
+                // Mensagem ao instanciar Objeto
+                GameObject obj = selectionManager.GetInstantiatedObject();
+                if (obj != null)
+                    infoText.text = "Objeto encontrado: " + obj.tag;
+                else
+                    infoText.text = "Objeto encontrado";
+            }
+            // Quando o Objeto está selecionado
+            else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
+            {
+                ActivateObjectInteractionButtons();
+                GameObject obj = SelectionManager.Instance.GetSelectedObject();
+                if (obj != null)
+                    infoText.text = "Objeto selecionado: " + obj.name;
+                else
+                    infoText.text = "Objeto selecionado";
+            }
+        }
+
+        if (isWaitingForSecondClick && secondClick && Input.GetMouseButtonDown(0))
+        {
+            Debug.Log("Segundo clique detectado. Verificando Objeto...");
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition); // Cria um raio da câmera para a posição do mouse
             RaycastHit hit; // Variável para armazenar informações do hit
 
-            if (Physics.Raycast(ray, out hit, 100)) // Realiza o raycast
+            if (Physics.Raycast(ray, out hit, 100))
             {
-                //Debug.Log("Raycast hit! Objeto atingido: " + SelectionManager.Instance.GetSelectedObject() + ", Tag: " + SelectionManager.Instance.GetSelectedObject().tag);
-                //Transform selected = hit.transform;
                 GameObject hitObj = hit.transform.gameObject;
-                //string selectedTag = selected.tag;
-
                 if (validTags.Contains(hitObj.tag))
                 {
-                    Debug.Log("Camada selecionada: " + hitObj.name);
                     SelectionManager.Instance.SelectLayer(hitObj);
                     infoText.text = "Camada selecionada: " + hitObj.name;
                 }
-                else if (hitObj.tag == "construction") // Tag do objeto inteiro
+                else if (hitObj.tag == "construction")
                 {
-                    Debug.Log("Objeto inteiro selecionado: " + hitObj.name);
-                    // Selecionar o objeto inteiro
                     SelectionManager.Instance.SelectWholeObject(hitObj);
-
                     infoText.text = "Objeto selecionado: " + hitObj.name;
-                    isWaitingForSecondClick = false; // Desativa a espera para o segundo clique
+                    isWaitingForSecondClick = false;
                 }
                 else
                 {
-                    Debug.LogWarning("Objeto inválido. Tente novamente.");
                     infoText.text = "Clique inválido. Tente novamente.";
                 }
-
-
+                // ...existing code...
                 if (SelectionManager.Instance.IsLayerSelectionActive())
                 {
-                    // Seleciona uma camada
                     SelectionManager.Instance.SelectLayer(hit.transform.gameObject);
                     infoText.text = "Camada selecionada: " + hit.transform.name;
-                    dropdownMenuButton(trackedImageHandler); // Chama o método para abrir o menu suspenso
-
+                    dropdownMenuButton(trackedImageHandler);
                 }
                 else
                 {
-                    // Seleciona o objeto inteiro
                     SelectionManager.Instance.SelectWholeObject(hit.transform.gameObject);
-                    StoreOriginalPosition(hitObj); // Armazena a posição original do objeto
+                    StoreOriginalPosition(hitObj);
                     infoText.text = "Objeto selecionado: " + hit.transform.name;
                     Debug.Log("Objeto selecionado: " + hit.transform.name);
-                    activedButtonEffect(selectObjectLayerButtonIcon); // Ativa o efeito do botão de selecionar camada
-                    activedButtonEffect(rotationObjectButtonIcon); // Ativa o efeito do botão de rotacionar objeto.
-                    activedButtonEffect(infoObjectButtonIcon); // Ativa o efeito do botão de informações do objeto.
-                    activedButtonEffect(newScanButtonIcon); // Ativa o efeito do botão de zoom.
                 }
             }
             else
             {
-                Debug.Log("Nenhum objeto atingido. Tente novamente.");
-                infoText.text = "Nenhum objeto encontrado. Clique novamente para selecionar.";
+                infoText.text = "Nenhum Objeto encontrado. Clique novamente para selecionar.";
             }
-
-            // Retorna ao estado inicial
             isWaitingForSecondClick = false;
-            secondClick = false; // Reseta o segundo clique
+            secondClick = false;
         }
 
-        // Verifica se o objeto está sendo arrastado
+        // Verifica se o Objeto está sendo arrastado
         if (isDragging && SelectionManager.Instance.HasSelection()) // Verifica se o botão do mouse está pressionado
         {
             // Inicia a coroutine para habilitar o clique após um pequeno delay
@@ -151,11 +149,11 @@ public class Functions : MonoBehaviour
                 {
 
 
-                    // Rotaciona o objeto no próprio eixo local
+                    // Rotaciona o Objeto no próprio eixo local
                     selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.World);
                     //selected.transform.Rotate(Vector3.right, -mouseY * rotationSpeed * Time.deltaTime, Space.Self); // Rotação no eixo X
 
-                    resertObjectButtonIcon.gameObject.SetActive(true); // Ativa o botão de resetar objeto
+                    resertObjectButtonIcon.gameObject.SetActive(true); // Ativa o botão de resetar Objeto
 
                 }
             }
@@ -168,26 +166,28 @@ public class Functions : MonoBehaviour
         }
 
 
-        // Verifica se o objeto foi instanciado
+        // Verifica se o Objeto foi instanciado
         if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
-
         {
-            // Ativa o efeito do botão de selecionar objeto inteiro
-            activedButtonEffect(selectObjectButtonIcon); // Ativa o efeito do botão de selecionar objeto inteiro.
-            feedBackInfo(infoBoxBackground, Color.green); // Altera a cor do botão de selecionar objeto inteiro
+            // Ativa o efeito do botão de selecionar Objeto inteiro
+            selectObjectButtonIcon.SetActive(true); // Ativa o efeito do botão de selecionar Objeto inteiro
+            activeButtonsFunctions(newScanButtonIcon); // Ativa o efeito do botão de zoom.
+            scannerAnimation.SetActive(false); // Ativa a animação do scanner
+            feedBackInfo(infoBoxBackground, Color.green); // Altera a cor do botão de selecionar Objeto inteiro
             infoText.color = Color.black; // Altera a cor do texto de informações
+
         }
         else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
         {
-            // Ativa o efeito do botão de selecionar objeto inteiro
-
-            feedBackInfo(infoBoxBackground, Color.blue); // Altera a cor do botão de selecionar objeto inteiro
+            // Ativa o efeito do botão de selecionar Objeto inteiro
+            //selectObjectButtonIcon.SetActive(true); // Ativa o efeito do botão de selecionar Objeto inteiro
+            feedBackInfo(infoBoxBackground, Color.blue); // Altera a cor do botão de selecionar Objeto inteiro
             infoText.color = Color.white; // Altera a cor do texto de informações
         }
         if (!trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
         {
-            // Desativa o efeito do botão de selecionar objeto inteiro
-            feedBackInfo(infoBoxBackground, Color.black); // Altera a cor do botão de selecionar objeto inteiro
+            // Desativa o efeito do botão de selecionar Objeto inteiro
+            feedBackInfo(infoBoxBackground, Color.black); // Altera a cor do botão de selecionar Objeto inteiro
             infoText.color = Color.white; // Altera a cor do texto de informações
         }
 
@@ -195,8 +195,8 @@ public class Functions : MonoBehaviour
 
     public void ClickSelect()
     {
-        Debug.Log("Botão de selecionar objeto ativado!");
-        infoText.text = "Clique em um objeto para selecioná-lo.";
+        Debug.Log("Botão de selecionar Objeto ativado!");
+        infoText.text = "Clique em um Objeto para selecioná-lo.";
         isWaitingForSecondClick = true;
         isAnyButtonClicked = false; // Define que nenhum botão foi clicado
         StartCoroutine(EnableClickAfterDelay()); // Inicia a coroutine para habilitar o clique após um pequeno delay
@@ -214,8 +214,8 @@ public class Functions : MonoBehaviour
             if (selectedObject != null && HasLayerChildren(selectedObject))
 
             {
-                Debug.Log("Modo de seleção de camada ativado. Clique em uma camada do objeto.");
-                infoText.text = "Selecione uma camada do objeto.";
+                Debug.Log("Modo de seleção de camada ativado. Clique em uma camada do Objeto.");
+                infoText.text = "Selecione uma camada do Objeto.";
                 SelectionManager.Instance.EnableLayerSelection(); // Ativa o modo de seleção de camada
                 isWaitingForSecondClick = true;
                 isAnyButtonClicked = false; // Define que nenhum botão foi clicado
@@ -224,14 +224,14 @@ public class Functions : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("O objeto selecionado não possui camadas válidas.");
-                infoText.text = "O objeto selecionado não possui camadas válidas.";
+                Debug.LogWarning("O Objeto selecionado não possui camadas válidas.");
+                infoText.text = "O Objeto selecionado não possui camadas válidas.";
             }
         }
         else
         {
-            Debug.LogWarning("Nenhum objeto foi selecionado. Selecione um objeto primeiro.");
-            infoText.text = "Nenhum objeto foi selecionado. Clique em um objeto primeiro.";
+            Debug.LogWarning("Nenhum Objeto foi selecionado. Selecione um Objeto primeiro.");
+            infoText.text = "Nenhum Objeto foi selecionado. Clique em um Objeto primeiro.";
         }
     }
 
@@ -253,23 +253,39 @@ public class Functions : MonoBehaviour
     public void newScan()
     {
         Debug.Log("Prefab serao desativados!"); // Log to the console
-        clearVirtualizedObject(); // Call the method to clear the virtualized object
-        disableALlButtonEffect(); // Call the method to disable all button effects
-        Debug.Log("New scan initiated!");
+        if (trackedImageHandler.isObjectInstantiated)
+        {
+            clearVirtualizedObject(); // Call the method to clear the virtualized object
+            DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
+            ResetAndHideDropdownMenu(); // Reseta e desativa o dropdown menu
+            infoText.text = "Para iniciar foque a camera em um MARCADOR";
+            Debug.Log("New scan initiated!");
+        }
+        else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
+        {
+            clearVirtualizedObject(); // Call the method to clear the virtualized object
+            DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
+            ResetAndHideDropdownMenu(); // Reseta e desativa o dropdown menu
+            infoText.text = "Para iniciar foque a camera em um MARCADOR";
+            Debug.Log("New scan initiated!");
+        }
+        else
+        {
+            Debug.LogWarning("Nenhum Objeto instanciado. Não é possível iniciar um novo scan.");
+            infoText.text = "Nenhum Objeto instanciado. Não é possível iniciar um novo scan.";
+        }
     }
 
     public void clearVirtualizedObject()
     {
-        // Desativa todos os objetos desativados
+        // Desativa todos os Objetos desativados
         Debug.Log("Prefab deactivated! Ativando rotina do rastreador"); // Log to the console
         trackedImageHandler.OnNewScan(); // Call the method to clear the virtualized object
         dropdownMenu.SetActive(false); // Desativa o menu suspenso
-
     }
 
     public bool checkTrack()
     {
-
         if (trackedImageHandler != null && trackedImageHandler.isObjectInstantiated)
         {
             return true; // Return true if the prefab is instantiated
@@ -292,20 +308,20 @@ public class Functions : MonoBehaviour
             if (selectedObject != null)
             {
                 Debug.Log("Modo de rotação ativado!");
-                infoText.text = "Arraste para rotacionar o objeto!";
+                infoText.text = "Arraste para rotacionar o Objeto!";
                 isDragging = true;
                 secondClick = true; // Define que o segundo clique foi registrado
-                Debug.Log("Rotacionando objeto: " + selectedObject.name);
+                Debug.Log("Rotacionando Objeto: " + selectedObject.name);
             }
             else
             {
-                Debug.LogWarning("Nenhum objeto válido foi selecionado para rotacionar!");
-                infoText.text = "Nenhum objeto válido foi selecionado para rotacionar!";
+                Debug.LogWarning("Nenhum Objeto válido foi selecionado para rotacionar!");
+                infoText.text = "Nenhum Objeto válido foi selecionado para rotacionar!";
             }
         }
         else
         {
-            infoText.text = "Nenhum objeto selecionado para rotacionar!";
+            infoText.text = "Nenhum Objeto selecionado para rotacionar!";
         }
         isAnyButtonClicked = false; // Define que nenhum botão foi clicado
     }
@@ -320,7 +336,6 @@ public class Functions : MonoBehaviour
             if (selectedObject != null)
             {
                 ObjectInfo info = SelectionManager.Instance.DisplayObjectInfoReal(selectedObject);
-
                 infoText.text = $"<b>{info.Name}</b>: " +
                                 $"Dimensões: {info.Dimensions.x:F2} x {info.Dimensions.y:F2} x {info.Dimensions.z:F2} m, " +
                                 $"Área: {info.Area:F2} m², " +
@@ -329,13 +344,12 @@ public class Functions : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("Nenhum objeto válido foi selecionado para exibir informações!");
-                infoText.text = "Nenhum objeto válido foi selecionado para exibir informações!";
+                infoText.text = "Nenhum Objeto válido foi selecionado para exibir informações!";
             }
         }
         else
         {
-            infoText.text = "Nenhum objeto selecionado para exibir informações!";
+            infoText.text = "Nenhum Objeto selecionado para exibir informações!";
         }
         isAnyButtonClicked = false; // Define que nenhum botão foi clicado
     }
@@ -355,7 +369,7 @@ public class Functions : MonoBehaviour
         }
     }
 
-    
+
 
     public void feedBackInfo(GameObject gameObject, Color newCor)
     {
@@ -381,13 +395,13 @@ public class Functions : MonoBehaviour
             {
                 dropdownMenu.SetActive(!dropdownMenu.activeSelf);
                 Debug.Log("Dropdown menu toggled!");
-                infoText.text = "Selecione uma camada do objeto.";
+                infoText.text = "Selecione uma camada do Objeto.";
 
-                // Verifica se o objeto selecionado é válido
+                // Verifica se o Objeto selecionado é válido
                 GameObject selectedObject = SelectionManager.Instance.GetSelectedObject();
                 if (selectedObject != null)
                 {
-                    Debug.Log("Exibindo camadas do objeto: " + selectedObject.name);
+                    Debug.Log("Exibindo camadas do Objeto: " + selectedObject.name);
 
                     // Aqui você pode, por exemplo, preencher um TMP_Dropdown com os nomes das camadas:
                     TMP_Dropdown dropdown = dropdownMenu.GetComponentInChildren<TMP_Dropdown>();
@@ -399,7 +413,7 @@ public class Functions : MonoBehaviour
                         layerNames.Add("Todas as camadas"); // Adiciona a opção "Todas as camadas" ao dropdown
                         foreach (Transform child in selectedObject.transform)
                         {
-                            // Verifica se o objeto filho tem uma tag válida
+                            // Verifica se o Objeto filho tem uma tag válida
                             if (child != null && validTags.Contains(child.tag))
                             {
 
@@ -423,6 +437,7 @@ public class Functions : MonoBehaviour
                             {
                                 Debug.Log("Camada selecionada no dropdown: " + layerNames[index]);
                                 SelectionManager.Instance.SelectLayerByName(layerNames[index]); // Chama o método no SelectionManager
+                                infoText.text = "Camada selecionada: " + layerNames[index];
                             }
 
                         });
@@ -430,8 +445,8 @@ public class Functions : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("Nenhum objeto selecionado. Clique em um objeto primeiro.");
-                    infoText.text = "Nenhum objeto selecionado. Clique em um objeto primeiro.";
+                    Debug.LogWarning("Nenhum Objeto selecionado. Clique em um Objeto primeiro.");
+                    infoText.text = "Nenhum Objeto selecionado. Clique em um Objeto primeiro.";
                 }
             }
             else
@@ -441,8 +456,8 @@ public class Functions : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Nenhum objeto selecionado. Clique em um objeto primeiro.");
-            infoText.text = "Nenhum objeto selecionado. Clique em um objeto primeiro.";
+            Debug.LogWarning("Nenhum Objeto selecionado. Clique em um Objeto primeiro.");
+            infoText.text = "Nenhum Objeto selecionado. Clique em um Objeto primeiro.";
         }
     }
 
@@ -461,7 +476,7 @@ public class Functions : MonoBehaviour
 
     public void ResetObject()
     {
-        Debug.Log("Resetando objeto selecionado para a posição original!");
+        Debug.Log("Resetando Objeto selecionado para a posição original!");
         GameObject selected = SelectionManager.Instance.GetSelectedObject();
         if (selected != null)
         {
@@ -474,12 +489,12 @@ public class Functions : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("A posição original do objeto não foi armazenada.");
+                Debug.LogWarning("A posição original do Objeto não foi armazenada.");
             }
         }
         else
         {
-            Debug.LogWarning("Nenhum objeto está selecionado para resetar.");
+            Debug.LogWarning("Nenhum Objeto está selecionado para resetar.");
         }
     }
 
@@ -507,6 +522,94 @@ public class Functions : MonoBehaviour
         newScanButtonIcon.GetComponent<RawImage>().color = color;
     }
 
+    private void activeButtonsFunctions(GameObject gameObject)
+    {
+        if (trackedImageHandler.isObjectInstantiated)
+        {
+            foreach (Transform child in gameObject.transform)
+            {
+                // Ativa os botões de interação
+                gameObject.SetActive(true); // Ativa o efeito do botão de selecionar camada
+                activedButtonEffect(gameObject); // Ativa o efeito do botão de selecionar camada
+
+            }
+            Debug.Log("Botões de interação ativados!"); // Log para depuração
+        }
+        else
+        {
+            Debug.LogWarning("Nenhum Objeto instanciado. Botões de interação não ativados.");
+        }
+
+    }
+
+    private void inactiveButtonsFunctions()
+    {
+        // Desativa os botões de interação
+        selectObjectLayerButtonIcon.SetActive(false); // Desativa o efeito do botão de selecionar camada
+        rotationObjectButtonIcon.SetActive(false); // Desativa o efeito do botão de rotacionar Objeto.
+        infoObjectButtonIcon.SetActive(false); // Desativa o efeito do botão de informações do Objeto.
+        zoomObjectButtonIcon.SetActive(false); // Desativa o efeito do botão de zoom.
+        Debug.Log("Botões de interação desativados!"); // Log para depuração
+    }
+
+    // === NOVOS MÉTODOS AUXILIARES ===
+
+    private void DeactivateAllButtonsExceptHome()
+    {
+        // Desativa todos os botões de interação, exceto o botão home (assumindo que o botão home não está nesta lista)
+        selectObjectLayerButtonIcon.SetActive(false);
+        selectObjectButtonIcon.SetActive(false);
+        rotationObjectButtonIcon.SetActive(false);
+        infoObjectButtonIcon.SetActive(false);
+        zoomObjectButtonIcon.SetActive(false);
+        newScanButtonIcon.SetActive(false);
+        resertObjectButtonIcon.SetActive(false);
+        if (!trackedImageHandler.isObjectInstantiated) selectButton.gameObject.SetActive(false);
+        if (infoButton != null) infoButton.gameObject.SetActive(false);
+        Debug.Log("Todos os botões desativados, exceto o home!"); // Log para depuração
+        // O botão home deve ser mantido ativo (não listado aqui)
+    }
+
+    private void ActivateScanAndSelectButtons()
+    {
+        // Ativa apenas os botões de novo scan e selecionar Objeto
+        newScanButtonIcon.SetActive(true);
+        if (selectButton != null) selectButton.gameObject.SetActive(true);
+        // Desativa os outros
+        selectObjectLayerButtonIcon.SetActive(false);
+        rotationObjectButtonIcon.SetActive(false);
+        infoObjectButtonIcon.SetActive(false);
+        zoomObjectButtonIcon.SetActive(false);
+        if (infoButton != null) infoButton.gameObject.SetActive(false);
+        Debug.Log("Botões de novo scan e selecionar Objeto ativados!"); // Log para depuração
+    }
+
+    private void ActivateObjectInteractionButtons()
+    {
+        // Ativa os botões de interação do Objeto após seleção
+        selectObjectLayerButtonIcon.SetActive(true);
+        rotationObjectButtonIcon.SetActive(true);
+        infoObjectButtonIcon.SetActive(true);
+        // Os outros permanecem conforme necessário
+        newScanButtonIcon.SetActive(true);
+        if (selectButton != null) selectButton.gameObject.SetActive(true);
+        if (infoButton != null) infoButton.gameObject.SetActive(true);
+        Debug.Log("Botões de interação do Objeto ativados!"); // Log para depuração
+    }
+
+    private void ResetAndHideDropdownMenu()
+    {
+        if (dropdownMenu != null)
+        {
+            TMP_Dropdown dropdown = dropdownMenu.GetComponentInChildren<TMP_Dropdown>();
+            if (dropdown != null)
+            {
+                dropdown.ClearOptions();
+            }
+            dropdownMenu.SetActive(false);
+        }
+        Debug.Log("Dropdown menu resetado e oculto!"); // Log para depuração
+    }
 }
 
 
