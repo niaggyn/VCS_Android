@@ -70,3 +70,33 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+Assets/Editor/IfcDataElements.meta
+Assets/Editor/IfcDataElements/IfcFileAssociation.cs
+Assets/Editor/IfcDataElements/IfcFileAssociation.cs.meta
+Assets/Editor/IfcDataElements/IfcProductData.cs
+Assets/Editor/IfcDataElements/IfcProductData.cs.meta
+Assets/Editor/IfcDataElements/IfcProjectData.cs
+Assets/Editor/IfcDataElements/IfcProjectData.cs.meta
+Assets/Editor/IfcDataElements/IfcPropertyData.cs
+Assets/Editor/IfcDataElements/IfcPropertyData.cs.meta
+Assets/Editor/IfcDataElements/IfcPropertySetData.cs
+Assets/Editor/IfcDataElements/IfcPropertySetData.cs.meta
+Assets/Editor/IfcDataElements/IfcTypeData.cs
+Assets/Editor/IfcDataElements/IfcTypeData.cs.meta
+Assets/Editor/IfcTools.meta
+Assets/Editor/IfcTools/IfcEntityLinker.cs
+Assets/Editor/IfcTools/IfcEntityLinker.cs.meta
+Assets/Editor/IfcTools/IfcFileLoader.cs
+Assets/Meshes.meta
+Assets/Meshes/Project1_2021.mtl
+Assets/Meshes/Project1_2021.mtl.meta
+Assets/Meshes/Project1_2021.obj
+Assets/Meshes/Project1_2021.obj.meta
+Assets/Meshes/Projeto \[Santa Ines\] Unity2.mtl
+Assets/Meshes/Projeto \[Santa Ines\] Unity2.mtl.meta
+Assets/Meshes/Projeto \[Santa Ines\] Unity2.obj
+Assets/Meshes/Projeto \[Santa Ines\] Unity2.obj.meta
+Assets/Meshes/ResidenciaR2024v2.mtl
+Assets/Meshes/ResidenciaR2024v2.mtl.meta
+Assets/Meshes/ResidenciaR2024v2.obj
+Assets/Meshes/ResidenciaR2024v2.obj.meta

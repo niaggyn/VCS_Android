@@ -42,9 +42,9 @@ TagManager:
   - 
   - 
   - 
-  - 
+  - Walls
   - XR Simulation
-  - 
+  - Doors
   m_SortingLayers:
   - name: Default
     uniqueID: 0

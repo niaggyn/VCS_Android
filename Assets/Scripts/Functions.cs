@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using TMPro;
-using UnityEditor;
+using ZXing;
+using ZXing.QrCode;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -30,7 +32,9 @@ public class Functions : MonoBehaviour
     public GameObject dropdownMenu; // Reference to the dropdown menu
     public GameObject scannerAnimation; // Reference to the scanner animation
     public GameObject resertObjectButtonIcon; // Reference to the RawImage component
+    public GameObject textInfoTechnical; // Reference to the TextMeshPro component
     public TMP_Text infoText; // Reference to the TextMeshPro component
+    public TMP_Text tecnicalTextOfObject; // Reference to the TextMeshPro component
     public ImageTracker trackedImageHandler;
     public SelectionManager selectionManager; // Reference to the SelectionManager script
     private List<string> validTags = new List<string> { "paredes", "telhados", "pisos", "colunas", "portas", "janelas", "forros" }; // Adicione as tags válidas aqui
@@ -39,6 +43,10 @@ public class Functions : MonoBehaviour
     private Quaternion originalRotation; // Variável para armazenar a rotação original do Objeto
     private Vector3 originalScale;
     private bool isOriginalPositionStored = false; // Flag para verificar se a posição original já foi armazenada
+
+    // Variável para armazenar o texto de informações técnicas
+    private string tecnicalInfoBackupText = "Nome: Projeto Residencial Familiar /nÁrea: 49.640m² /nElevação: 0.15m /nQuantidade de Cômodos: 5" +
+                                            "Escala: 50 /nPerímetro: 28.2m /nDimensões: 7.3m x 6,8m /nPortas: 5 /nJanelas: 5";
 
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -64,26 +72,50 @@ public class Functions : MonoBehaviour
         }
         else
         {
-            // Quando o Objeto é instanciado e nenhum Objeto está selecionado
-            if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
+            if (!trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
             {
-                ActivateScanAndSelectButtons();
-                // Mensagem ao instanciar Objeto
-                GameObject obj = selectionManager.GetInstantiatedObject();
+                // Desativa o efeito do botão de selecionar Objeto inteiro
+                feedBackInfo(infoBoxBackground, Color.black); // Altera a cor do botão de selecionar Objeto inteiro
+                infoText.color = Color.white; // Altera a cor do texto de informações
+                scannerAnimation.SetActive(true); // Ativa a animação do scanner
+                Debug.Log("Nenhum Objeto encontrado!"); // Log para depuração
+            }
+            // Quando o Objeto é instanciado e nenhum Objeto está selecionado
+            else if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
+            {
+                // Ativa os botões de interação
+                GameObject obj = trackedImageHandler.GetInstantiatedObject();
                 if (obj != null)
-                    infoText.text = "Objeto encontrado: " + obj.tag;
+                {
+                    scannerAnimation.SetActive(false); // Ativa a animação do scanner
+                    ActivateScanAndSelectButtons();
+                    infoText.text = "Objeto encontrado: " + obj.name;
+                    feedBackInfo(infoBoxBackground, Color.green); // Altera a cor do botão de selecionar Objeto inteiro
+                    infoText.color = Color.black; // Altera a cor do texto de informações
+                    Debug.Log("Objeto encontrado: " + obj.name); // Log para depuração
+                }
                 else
-                    infoText.text = "Objeto encontrado";
+                {
+                    infoText.text = "Objeto náo encontrado!";
+                }
             }
             // Quando o Objeto está selecionado
             else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
             {
-                ActivateObjectInteractionButtons();
                 GameObject obj = SelectionManager.Instance.GetSelectedObject();
                 if (obj != null)
+                {
+                    ActivateObjectInteractionButtons();
+                    // Evitar que selecione o objeto depois de ja selecionar pois pode quebrar textura
+                    //selectObjectButtonIcon.SetActive(true); // Ativa o efeito do botão de selecionar Objeto inteiro
+                    feedBackInfo(infoBoxBackground, Color.blue); // Altera a cor do botão de selecionar Objeto inteiro
+                    infoText.color = Color.white; // Altera a cor do texto de informações
                     infoText.text = "Objeto selecionado: " + obj.name;
+                    Debug.Log("Objeto instanciado e selecionado: " + obj.name); // Log para depuração
+                }
                 else
                     infoText.text = "Objeto selecionado";
+
             }
         }
 
@@ -106,6 +138,7 @@ public class Functions : MonoBehaviour
                     SelectionManager.Instance.SelectWholeObject(hitObj);
                     infoText.text = "Objeto selecionado: " + hitObj.name;
                     isWaitingForSecondClick = false;
+                    selectButton.gameObject.SetActive(false); // Desativa o botão de selecionar Objeto inteiro
                 }
                 else
                 {
@@ -147,14 +180,11 @@ public class Functions : MonoBehaviour
                 GameObject selected = SelectionManager.Instance.GetSelectedObject();
                 if (selected != null)
                 {
-
-
                     // Rotaciona o Objeto no próprio eixo local
                     selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.World);
                     //selected.transform.Rotate(Vector3.right, -mouseY * rotationSpeed * Time.deltaTime, Space.Self); // Rotação no eixo X
 
                     resertObjectButtonIcon.gameObject.SetActive(true); // Ativa o botão de resetar Objeto
-
                 }
             }
             else if (Input.GetMouseButtonUp(0)) // Quando o botão do mouse é solto
@@ -164,33 +194,6 @@ public class Functions : MonoBehaviour
             }
 
         }
-
-
-        // Verifica se o Objeto foi instanciado
-        if (trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
-        {
-            // Ativa o efeito do botão de selecionar Objeto inteiro
-            selectObjectButtonIcon.SetActive(true); // Ativa o efeito do botão de selecionar Objeto inteiro
-            activeButtonsFunctions(newScanButtonIcon); // Ativa o efeito do botão de zoom.
-            scannerAnimation.SetActive(false); // Ativa a animação do scanner
-            feedBackInfo(infoBoxBackground, Color.green); // Altera a cor do botão de selecionar Objeto inteiro
-            infoText.color = Color.black; // Altera a cor do texto de informações
-
-        }
-        else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
-        {
-            // Ativa o efeito do botão de selecionar Objeto inteiro
-            //selectObjectButtonIcon.SetActive(true); // Ativa o efeito do botão de selecionar Objeto inteiro
-            feedBackInfo(infoBoxBackground, Color.blue); // Altera a cor do botão de selecionar Objeto inteiro
-            infoText.color = Color.white; // Altera a cor do texto de informações
-        }
-        if (!trackedImageHandler.isObjectInstantiated && !SelectionManager.Instance.HasSelection())
-        {
-            // Desativa o efeito do botão de selecionar Objeto inteiro
-            feedBackInfo(infoBoxBackground, Color.black); // Altera a cor do botão de selecionar Objeto inteiro
-            infoText.color = Color.white; // Altera a cor do texto de informações
-        }
-
     }
 
     public void ClickSelect()
@@ -246,34 +249,17 @@ public class Functions : MonoBehaviour
         Debug.Log("Home button clicked!, o cenario deve ser resetado"); // Log to the console
         clearVirtualizedObject(); // Call the method to clear the virtualized object
         arSessionController.StartAR(); // Stop the AR session
-        disableALlButtonEffect(); // Call the method to disable all button effects
-        infoText.text = "para iniciar foque a camera em uma marca"; // Reset the info text 
+        DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
     }
 
     public void newScan()
     {
         Debug.Log("Prefab serao desativados!"); // Log to the console
-        if (trackedImageHandler.isObjectInstantiated)
-        {
-            clearVirtualizedObject(); // Call the method to clear the virtualized object
-            DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
-            ResetAndHideDropdownMenu(); // Reseta e desativa o dropdown menu
-            infoText.text = "Para iniciar foque a camera em um MARCADOR";
-            Debug.Log("New scan initiated!");
-        }
-        else if (trackedImageHandler.isObjectInstantiated && SelectionManager.Instance.HasSelection())
-        {
-            clearVirtualizedObject(); // Call the method to clear the virtualized object
-            DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
-            ResetAndHideDropdownMenu(); // Reseta e desativa o dropdown menu
-            infoText.text = "Para iniciar foque a camera em um MARCADOR";
-            Debug.Log("New scan initiated!");
-        }
-        else
-        {
-            Debug.LogWarning("Nenhum Objeto instanciado. Não é possível iniciar um novo scan.");
-            infoText.text = "Nenhum Objeto instanciado. Não é possível iniciar um novo scan.";
-        }
+        clearVirtualizedObject(); // Call the method to clear the virtualized object
+        DeactivateAllButtonsExceptHome(); // Desativa todos os botões menos o home
+        ResetAndHideDropdownMenu(); // Reseta e desativa o dropdown menu
+        scannerAnimation.SetActive(true); // Ativa a animação do scanner
+        feedBackInfo(infoBoxBackground, Color.black);
     }
 
     public void clearVirtualizedObject()
@@ -281,13 +267,13 @@ public class Functions : MonoBehaviour
         // Desativa todos os Objetos desativados
         Debug.Log("Prefab deactivated! Ativando rotina do rastreador"); // Log to the console
         trackedImageHandler.OnNewScan(); // Call the method to clear the virtualized object
-        dropdownMenu.SetActive(false); // Desativa o menu suspenso
     }
 
     public bool checkTrack()
     {
         if (trackedImageHandler != null && trackedImageHandler.isObjectInstantiated)
         {
+            scannerAnimation.SetActive(false); // Ativa a animação do scanner
             return true; // Return true if the prefab is instantiated
         }
         else
@@ -328,6 +314,7 @@ public class Functions : MonoBehaviour
 
     public void infoShow()
     {
+        /*
         Debug.Log("Botão de informações ativado!"); // Log to the console
         isWaitingForSecondClick = false; // Reseta o estado de espera para o segundo clique
         if (SelectionManager.Instance.HasSelection())
@@ -352,6 +339,16 @@ public class Functions : MonoBehaviour
             infoText.text = "Nenhum Objeto selecionado para exibir informações!";
         }
         isAnyButtonClicked = false; // Define que nenhum botão foi clicado
+        */
+        /*string text = File.ReadAllText("Assets/Resources/Models/houseInfo.txt");
+        if(text == null)
+        {
+            text = tecnicalInfoBackupText;
+        }
+        tecnicalTextOfObject.text = text;
+        textInfoTechnical.SetActive(true);
+        */
+        StartCoroutine(ReadQRCodeAndShow());
     }
 
     private void activedButtonEffect(GameObject gameObject)
@@ -369,17 +366,11 @@ public class Functions : MonoBehaviour
         }
     }
 
-
-
     public void feedBackInfo(GameObject gameObject, Color newCor)
     {
         //Color color = gameObject.GetComponent<Image>().color;
-
-
         Color cor = newCor; // Define a cor verde
-
         gameObject.GetComponent<Image>().color = cor; // Aplica a nova cor
-
         //Debug.Log("Cor do botão alterada para: " + cor); // Log para depuração
     }
 
@@ -564,6 +555,7 @@ public class Functions : MonoBehaviour
         zoomObjectButtonIcon.SetActive(false);
         newScanButtonIcon.SetActive(false);
         resertObjectButtonIcon.SetActive(false);
+        textInfoTechnical.SetActive(false);
         if (!trackedImageHandler.isObjectInstantiated) selectButton.gameObject.SetActive(false);
         if (infoButton != null) infoButton.gameObject.SetActive(false);
         Debug.Log("Todos os botões desativados, exceto o home!"); // Log para depuração
@@ -574,12 +566,13 @@ public class Functions : MonoBehaviour
     {
         // Ativa apenas os botões de novo scan e selecionar Objeto
         newScanButtonIcon.SetActive(true);
-        if (selectButton != null) selectButton.gameObject.SetActive(true);
+        selectButton.gameObject.SetActive(true);
         // Desativa os outros
         selectObjectLayerButtonIcon.SetActive(false);
         rotationObjectButtonIcon.SetActive(false);
         infoObjectButtonIcon.SetActive(false);
         zoomObjectButtonIcon.SetActive(false);
+        textInfoTechnical.SetActive(false);
         if (infoButton != null) infoButton.gameObject.SetActive(false);
         Debug.Log("Botões de novo scan e selecionar Objeto ativados!"); // Log para depuração
     }
@@ -592,7 +585,7 @@ public class Functions : MonoBehaviour
         infoObjectButtonIcon.SetActive(true);
         // Os outros permanecem conforme necessário
         newScanButtonIcon.SetActive(true);
-        if (selectButton != null) selectButton.gameObject.SetActive(true);
+        selectButton.gameObject.SetActive(false);
         if (infoButton != null) infoButton.gameObject.SetActive(true);
         Debug.Log("Botões de interação do Objeto ativados!"); // Log para depuração
     }
@@ -609,6 +602,100 @@ public class Functions : MonoBehaviour
             dropdownMenu.SetActive(false);
         }
         Debug.Log("Dropdown menu resetado e oculto!"); // Log para depuração
+    }
+
+
+    private IEnumerator ReadQRCodeAndShow()
+    {
+    #if UNITY_EDITOR
+        // Ambiente simulado (Editor): não tenta acessar a câmera
+        tecnicalTextOfObject.text = "Leitura de QR Code não disponível no modo simulado/Editor.";
+        textInfoTechnical.SetActive(true);
+        yield break;
+    #else
+    // Verifica se há câmera disponível
+    if (WebCamTexture.devices.Length == 0)
+    {
+        tecnicalTextOfObject.text = "Nenhuma câmera detectada no dispositivo.";
+        textInfoTechnical.SetActive(true);
+        yield break;
+    }
+
+    WebCamTexture webcamTexture = null;
+    try
+    {
+        webcamTexture = new WebCamTexture();
+        webcamTexture.Play();
+
+        float timeout = 3f;
+        float elapsed = 0f;
+        while (webcamTexture.width <= 16 && elapsed < timeout)
+        {
+            yield return null;
+            elapsed += Time.deltaTime;
+        }
+
+        if (webcamTexture.width <= 16)
+        {
+            tecnicalTextOfObject.text = "Falha ao inicializar a câmera.";
+            textInfoTechnical.SetActive(true);
+            webcamTexture.Stop();
+            yield break;
+        }
+
+        yield return new WaitForSeconds(1f); // Aguarda a câmera iniciar
+
+        IBarcodeReader barcodeReader = new BarcodeReader();
+        string qrText = null;
+
+        // Tenta ler o QR Code por até 5 segundos
+        float timer = 0f;
+        while (timer < 5f && qrText == null)
+        {
+            try
+            {
+                var snap = new Texture2D(webcamTexture.width, webcamTexture.height, TextureFormat.RGBA32, false);
+                snap.SetPixels32(webcamTexture.GetPixels32());
+                snap.Apply();
+
+                var result = barcodeReader.Decode(snap.GetPixels32(), snap.width, snap.height);
+                if (result != null)
+                {
+                    qrText = result.Text;
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("Erro ao tentar ler QR Code: " + ex.Message);
+            }
+
+            timer += 0.5f;
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        webcamTexture.Stop();
+
+        if (!string.IsNullOrEmpty(qrText))
+        {
+            tecnicalTextOfObject.text = qrText;
+            textInfoTechnical.SetActive(true);
+        }
+        else
+        {
+            tecnicalTextOfObject.text = "QR Code não detectado!";
+            textInfoTechnical.SetActive(true);
+        }
+    }
+    catch (Exception ex)
+    {
+        if (webcamTexture != null && webcamTexture.isPlaying)
+            webcamTexture.Stop();
+        tecnicalTextOfObject.text = "Erro ao acessar a câmera: " + ex.Message;
+        textInfoTechnical.SetActive(true);
+        yield break;
+    }
+#endif
     }
 }
 

@@ -16,7 +16,7 @@ public class ImageTracker : MonoBehaviour
     public bool newScan = false; // Flag to track if a new scan is initiated
 
     public List<GameObject> ARObjects = new List<GameObject>();
-    
+
 
     void Awake()
     {
@@ -25,7 +25,7 @@ public class ImageTracker : MonoBehaviour
 
     void Update()
     {
-        
+
     }
 
     void OnEnable()
@@ -186,5 +186,16 @@ public class ImageTracker : MonoBehaviour
     public GameObject GetSelectedObject()
     {
         return selectedObject; // Retorna o objeto atualmente selecionado
+    }
+    public GameObject GetInstantiatedObject()
+    {
+        foreach (var obj in ARObjects)
+        {
+            if (obj.activeSelf)
+            {
+                return obj; // Retorna o objeto atualmente instanciado
+            }
+        }
+        return null; // Retorna null se nenhum objeto estiver ativo
     }
 }

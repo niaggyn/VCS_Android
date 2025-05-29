@@ -209,28 +209,6 @@ public class SelectionManager : MonoBehaviour
             {
                 child.gameObject.SetActive(false);
             }
-
-            /*
-            Renderer renderer = child.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                foreach (Material material in renderer.materials)
-                {
-                    if (child.name == layerName)
-                    {
-                        // Destaca a camada selecionada (restaura opacidade total)
-                        SetMaterialTransparency(material, 1.0f); // Totalmente opaco
-                        selectedLayer = child.gameObject;
-                        Debug.Log("Camada ativada: " + child.name);
-                    }
-                    else
-                    {
-                        // Torna as outras camadas transparentes
-                        SetMaterialTransparency(material, 0.3f); // Transparência ajustada
-                    }
-                }
-            }
-            */
         }
     }
 
