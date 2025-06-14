@@ -12,6 +12,13 @@ TagManager:
   - paredes
   - pisos
   - telhados
+  - construction2
+  - escadas
+  - mobilia
+  - paisagismo
+  - eletrico
+  - "hidrosanit\xE1ria"
+  - estrutural
   layers:
   - Default
   - TransparentFX

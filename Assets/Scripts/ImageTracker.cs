@@ -194,6 +194,7 @@ public class ImageTracker : MonoBehaviour
             if (obj.activeSelf)
             {
                 return obj; // Retorna o objeto atualmente instanciado
+                
             }
         }
         return null; // Retorna null se nenhum objeto estiver ativo

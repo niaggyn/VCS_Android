@@ -214,8 +214,12 @@ public class SelectionManager : MonoBehaviour
 
     private bool validLayer(Transform child)
     {
-        return child.tag == "paredes" || child.tag == "telhados" || child.tag == "pisos"
-            || child.tag == "janelas" || child.tag == "portas" || child.tag == "forros" || child.tag == "colunas"
+        return child.tag == "forros" || child.tag == "janelas" || child.tag == "colunas"
+            || child.tag == "portas" || child.tag == "paredes" || child.tag == "pisos"
+            || child.tag == "telhados" || child.tag == "escadas" || child.tag == "mobilia"
+            || child.tag == "paisagismo" || child.tag == "eletrico" || child.tag == "hidrosanitario"
+            || child.tag == "estrutural" || child.tag == "outros" || child.tag == "tubulacao"
+            || child.tag == "guarda-corpos" 
         ;
     }
 
