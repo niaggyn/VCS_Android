@@ -25,6 +25,7 @@ public class Functions : MonoBehaviour
     public Button elevateUpButton; // Reference to the button component
     public Button elevateDownButton; // Reference to the button component
     public Button homeReturnButton; // Reference to the button component
+    public Button openPDFButton; // Reference to the button component for opening PDF
     public float elevationStep = 200f; // Step size for elevation adjustment
     private bool isDragging = false;
     private bool isReadingQRCode = false; // Flag to prevent multiple reads
@@ -69,6 +70,9 @@ public class Functions : MonoBehaviour
     private float lastBackPressTime = 0f;
     private const float doubleBackDelay = 1.2f; // Tempo máximo entre os dois toques (em segundos)
     private bool waitingForSecondBack = false;
+
+    // Lista de informações de objetos (preencha via Inspector ou em tempo de execução)
+    public List<ObjectInfoData> allObjectInfos = new List<ObjectInfoData>();
 
 
     // Enum para os estados do aplicativo
@@ -192,13 +196,15 @@ public class Functions : MonoBehaviour
                 newScanButtonIcon.SetActive(true);
                 rotationObjectButtonIcon.SetActive(true); // Manter ativo para indicar o modo
                 resertObjectButtonIcon.SetActive(true);
-                // isDragging = true; // Não defina isDragging aqui, isso é feito pelo método rotateButton()
                 break;
 
             case AppState.InfoDisplaying:
                 homeReturnButton.gameObject.SetActive(true); // Botão "Home" para reiniciar o app
                 infoText.text = "Exibindo informações técnicas.";
                 newScanButtonIcon.SetActive(true);
+                rotationObjectButtonIcon.SetActive(true);
+                elevationButtonIcon.SetActive(true); // Botão "Elevação" (se necessário)
+                selectObjectLayerButtonIcon.SetActive(true); // Manter ativo para indicar o modo
                 infoObjectButtonIcon.SetActive(true); // Manter ativo
                 if (infoButton != null) infoButton.gameObject.SetActive(true);
                 textInfoTechnical.SetActive(true); // Ativa o painel de texto de informações
@@ -233,7 +239,10 @@ public class Functions : MonoBehaviour
         {
             infoButton.onClick.AddListener(infoShow);
         }
-
+        if (openPDFButton != null)
+        {
+            openPDFButton.onClick.AddListener(OpenPDFConsult);
+        }
         // Obtenha as referências para os UIPressHandler dos botões de elevação
         if (elevateUpButton != null)
         {
@@ -263,7 +272,6 @@ public class Functions : MonoBehaviour
         //     selectObjectLayerButtonIcon.GetComponent<Button>().onClick.AddListener(ClickSelectLayer);
         // }
     }
-
     void OnDisable()
     {
         if (selectButton != null)
@@ -274,9 +282,12 @@ public class Functions : MonoBehaviour
         {
             infoButton.onClick.RemoveListener(infoShow);
         }
+        if (openPDFButton != null)
+        {
+            openPDFButton.onClick.RemoveListener(OpenPDFConsult);
+        }
         // Remover listeners para outros botões também
     }
-
     // Update is called once per frame
     void Update()
     {
@@ -302,10 +313,7 @@ public class Functions : MonoBehaviour
                     SetAppState(AppState.ObjectFound);
                 }
             }
-            //if (trackedImageHandler.isObjectInstantiated && string.IsNullOrEmpty(qrCodeTextCache))
-            //{
-            //    StartCoroutine(ReadQRCodeAndCache());
-            //}
+
         }
 
         // --- Processamento de Input ---
@@ -501,7 +509,7 @@ public class Functions : MonoBehaviour
             canDragToRotate = false;
         }
 
-    //Acao de fechar o app
+        //Acao de fechar o app
 #if UNITY_ANDROID
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -520,12 +528,12 @@ public class Functions : MonoBehaviour
             }
         }
 
-    // Reseta o estado se o usuário não pressionar o segundo voltar a tempo
-    if (waitingForSecondBack && (Time.time - lastBackPressTime) > doubleBackDelay)
-    {
-        waitingForSecondBack = false;
-    }
-    #endif  
+        // Reseta o estado se o usuário não pressionar o segundo voltar a tempo
+        if (waitingForSecondBack && (Time.time - lastBackPressTime) > doubleBackDelay)
+        {
+            waitingForSecondBack = false;
+        }
+#endif
 
     }
     private IEnumerator EnableClickAfterDelay()
@@ -591,7 +599,6 @@ public class Functions : MonoBehaviour
         clearVirtualizedObject();
         arSessionController.StartAR();
         SetAppState(AppState.Scanning); // Define o estado final
-
     }
 
     public void newScan()
@@ -644,28 +651,141 @@ public class Functions : MonoBehaviour
 
     public void infoShow()
     {
-        SetAppState(AppState.InfoDisplaying); // Define o estado para exibir informações
+        SetAppState(AppState.InfoDisplaying); // Define o estado para exibir informações na UI
 
-        // Exibe o texto do cache imediatamente
-        tecnicalTextOfObject.text = qrCodeTextCache ?? "Informações do QR Code não disponíveis ou ainda sendo lidas.";
-        textInfoTechnical.SetActive(true);
-
-        // Se o QR Code ainda não foi lido e não há uma leitura em andamento, inicie uma.
-        if (string.IsNullOrEmpty(qrCodeTextCache) && !isReadingQRCode)
+        // Se uma leitura de QR Code já está em andamento, apenas informa e sai.
+        if (isReadingQRCode)
         {
-            Debug.Log("Botão Info clicado. QR Code não cacheado e não lendo. Tentando leitura.");
-            // A leitura real é iniciada em OnCameraFrameReceived quando um frame da câmera AR chega.
-            // Aqui, podemos forçar uma tentativa se quisermos, mas a lógica em OnCameraFrameReceived já controla isso.
-            // O mais importante é que a UI já está mostrando "aguardando".
-        }
-        else if (!string.IsNullOrEmpty(qrCodeTextCache))
-        {
-            Debug.Log("Botão Info clicado. Exibindo QR Code do cache.");
-        }
-        else if (isReadingQRCode)
-        {
-            Debug.Log("Botão Info clicado. Leitura de QR Code já em andamento.");
             infoText.text = "Lendo informações do QR Code, aguarde...";
+            tecnicalTextOfObject.text = "Aguardando leitura do QR Code...";
+            textInfoTechnical.SetActive(true);
+            Debug.Log("[Functions] Leitura de QR Code já em andamento. Exibindo mensagem de espera.");
+            return;
+        }
+
+        // Força a exibição da informação agora, com a nova lógica de prioridade.
+        DisplayAppropriateObjectInfo();
+
+        // Se o QR Code cacheado está vazio e não há leitura em andamento,
+        // E há um objeto instanciado (potencialmente rastreado pelo ImageTracker),
+        // PODE ser que o usuário queira uma leitura de QR Code AGORA.
+        // Esta é uma decisão de UX: Você quer que o botão INFO TENTE LER O QR CODE?
+        // Se sim, inicie a leitura aqui, mas com cautela para não sobrecarregar.
+        if (string.IsNullOrEmpty(qrCodeTextCache) && trackedImageHandler.isObjectInstantiated)
+        {
+            Debug.Log("[Functions] Botão Info clicado. QR Code cache vazio. Tentando iniciar leitura via ARCameraManager.");
+            // Não chamamos ProcessImageForQRCode diretamente aqui, pois OnCameraFrameReceived faz isso
+            // Mas a mera presença do ARCameraManager e do objeto fará com que ele tente ler.
+            // Você pode adicionar um cooldown aqui se quiser limitar as tentativas de leitura via botão INFO.
+            // Ex: if (Time.time > lastQRCodeReadAttemptTime + 2f) { // Inicia a leitura // }
+        }
+    }
+    private void DisplayObjectInfoFromID(string idToSearch)
+    {
+        Debug.Log($"[DEBUG] --- Iniciando busca por ID: '{idToSearch}' ---"); // Log CRUCIAL AQUI
+        Debug.Log($"[DEBUG] Buscando ID '{idToSearch}' em allObjectInfos...");
+
+        if (string.IsNullOrEmpty(idToSearch))
+        {
+            tecnicalTextOfObject.text = "ID do objeto não fornecida.";
+            infoText.text = "Informação não disponível.";
+            Debug.LogWarning("DisplayObjectInfoFromID chamado com ID nula/vazia.");
+            textInfoTechnical.SetActive(true);
+            return;
+        }
+
+        // O loop de debug é bom, mas vamos garantir que a lista não esteja vazia também.
+        if (allObjectInfos == null || allObjectInfos.Count == 0)
+        {
+            tecnicalTextOfObject.text = $"Nenhum ScriptableObject de informação carregado.";
+            infoText.text = "Configuração ausente.";
+            Debug.LogError("[Functions] allObjectInfos está nulo ou vazio no Inspector! Por favor, arraste seus ScriptableObjects.");
+            textInfoTechnical.SetActive(true);
+            return;
+        }
+
+        foreach (var info in allObjectInfos)
+        {
+            if (info == null) // Evita NullReferenceException se houver slots vazios na lista do Inspector
+            {
+                Debug.LogWarning("[DEBUG] allObjectInfos contém um slot nulo.");
+                continue;
+            }
+            Debug.Log($"[DEBUG] Comparando: '{idToSearch}' com ScriptableObject ID: '{info.objectID}'");
+        }
+
+        // Faça a comparação de forma case-insensitive e com trim para espaços em branco
+        ObjectInfoData foundInfo = allObjectInfos.Find(info =>
+            info != null && // Garante que o item da lista não é nulo antes de acessar .objectID
+            !string.IsNullOrEmpty(info.objectID) && // Garante que a ID do ScriptableObject não é nula/vazia
+            string.Equals(info.objectID.Trim(), idToSearch.Trim(), StringComparison.OrdinalIgnoreCase) // AQUI ESTÁ A CHAVE
+        );
+
+        if (foundInfo != null)
+        {
+            tecnicalTextOfObject.text = foundInfo.technicalInfoFormattedText;
+            infoText.text = "Informações de: " + foundInfo.objectName;
+            Debug.Log($"[Functions] Informações para ID '{idToSearch}' carregadas do ScriptableObject: {foundInfo.objectName}.");
+        }
+        else
+        {
+            tecnicalTextOfObject.text = $"Informações não encontradas para o ID: {idToSearch}.";
+            infoText.text = "Informação não disponível.";
+            Debug.LogWarning($"[Functions] ScriptableObject com ID '{idToSearch}' NÃO encontrado na lista 'allObjectInfos' após busca.");
+        }
+        textInfoTechnical.SetActive(true); // Ativa o painel de texto
+        Debug.Log($"[DEBUG] --- Fim da busca por ID: '{idToSearch}' ---");
+    }
+
+    // Este método decide qual informação exibir, baseado na prioridade
+    private void DisplayAppropriateObjectInfo()
+    {
+        string idToDisplay = null;
+
+        // Prioridade 1: Informação do QR Code cacheado (se foi lido com sucesso)
+        // Se o cache tem um valor válido que não é uma mensagem de erro de leitura
+        if (!string.IsNullOrEmpty(qrCodeTextCache) && !qrCodeTextCache.Contains("Erro") && !qrCodeTextCache.Contains("Falha") && !qrCodeTextCache.Contains("não detectado"))
+        {
+            idToDisplay = qrCodeTextCache;
+            Debug.Log("[DisplayInfo] Prioridade 1: Exibindo informações do QR Code cacheado.");
+        }
+        // Prioridade 2: Informação do objeto instanciado via ImageTracker (se não há QR Code válido)
+        else
+        {
+            GameObject currentInstantiatedObject = trackedImageHandler.GetInstantiatedObject();
+            if (currentInstantiatedObject != null)
+            {
+                idToDisplay = trackedImageHandler.GetObjectIdForInstantiatedObject(currentInstantiatedObject);
+                if (string.IsNullOrEmpty(idToDisplay))
+                {
+                    Debug.LogWarning($"[DisplayInfo] Objeto instanciado '{currentInstantiatedObject.name}' não tem ID associada no ImageTracker. Usando nome como fallback.");
+                    idToDisplay = currentInstantiatedObject.name; // Fallback para nome do GameObject
+                }
+                Debug.Log($"[DisplayInfo] Prioridade 2: Exibindo informações do objeto instanciado (ID: {idToDisplay ?? "N/A"}).");
+            }
+        }
+
+        // Exibir a informação ou o fallback padrão/de erro
+        if (!string.IsNullOrEmpty(idToDisplay))
+        {
+            DisplayObjectInfoFromID(idToDisplay);
+        }
+        else // Nenhuma ID válida encontrada de nenhuma fonte (nem QR Code válido, nem objeto instanciado)
+        {
+            // Se o QR Code falhou na leitura, podemos exibir a mensagem de erro do cache
+            if (!string.IsNullOrEmpty(qrCodeTextCache))
+            {
+                tecnicalTextOfObject.text = qrCodeTextCache; // Exibe a mensagem de erro do QR Code (ex: "QR Code não detectado!")
+                infoText.text = "Leitura de QR Code falhou.";
+                Debug.LogWarning("[DisplayInfo] Nenhuma ID válida, mas QR Code cache tem erro. Exibindo mensagem de erro do QR.");
+            }
+            else
+            {
+                tecnicalTextOfObject.text = tecnicalInfoBackupText; // Fallback para texto de backup genérico
+                infoText.text = "Nenhuma informação disponível.";
+                Debug.LogWarning("[DisplayInfo] Nenhuma ID válida encontrada e nenhum erro de QR Code. Exibindo texto de backup genérico.");
+            }
+            textInfoTechnical.SetActive(true);
         }
     }
 
@@ -830,8 +950,6 @@ public class Functions : MonoBehaviour
         newScanButtonIcon.GetComponent<RawImage>().color = color;
     }
 
-
-
     public void ElevateObject(Vector3 direction)
     {
         GameObject selected = SelectionManager.Instance.GetSelectedObject();
@@ -843,7 +961,6 @@ public class Functions : MonoBehaviour
             infoText.text = $"Movendo: {selected.name} Y: {selected.transform.position.y:F2}";
         }
     }
-
 
 
     private void ResetAndHideDropdownMenu()
@@ -1029,18 +1146,6 @@ public class Functions : MonoBehaviour
                 int width = conversionParams.outputDimensions.x;
                 int height = conversionParams.outputDimensions.y;
 
-                // Dispose image and request here, as data is now in rawImageData
-                /*if (image.valid)
-                {
-                    image.Dispose();
-                    imageDisposed = true;
-                }
-                if (requestInitialized)
-                {
-                    request.Dispose();
-                    requestInitialized = false;
-                }
-                */
 
                 // Copy to Color32[] for ZXing and run in a background Task
                 Task<Result> decodeTask = Task.Run(() =>
@@ -1131,13 +1236,16 @@ public class Functions : MonoBehaviour
                 request.Dispose();
             }
 
+            // ... (sua lógica de dispose) ...
             isReadingQRCode = false;
             Debug.Log("Processamento de imagem para QR Code finalizado. isReadingQRCode = false.");
-            // Make sure DisplayCachedObjectInfo() is called here or in your `infoShow()`
-            // DisplayCachedObjectInfo(); // Call this to update the UI
+
+            // Chame a função para exibir as informações aqui, agora que o cache foi atualizado
+
+            //DisplayAppropriateObjectInfo();
+            //Debug.Log("INFORACOES EXIBIDA FORCADAMENTE PELO UNITASK PROCESSADO.");
         }
     }
-
 
     private void PopulateDropdownLayers(GameObject selectedObject)
     {
@@ -1195,5 +1303,186 @@ public class Functions : MonoBehaviour
                 ProcessImageForQRCode(image).Forget(); // .Forget() is used when you don't need to await the UniTask from here
             }
         }
+    }
+
+
+    public void OpenPDFConsult()
+    {
+        string pdfRelativePath = GetSelectedObjectPDFFileName();
+        if (string.IsNullOrEmpty(pdfRelativePath))
+        {
+            infoText.text = "Nenhum documento PDF associado a este objeto.";
+            Debug.LogWarning("[Functions] Não foi possível obter o caminho do PDF para consulta.");
+            return;
+        }
+
+#if UNITY_ANDROID || UNITY_IOS // NativeShare é multi-plataforma
+        OpenPDFWithNativeShare(pdfRelativePath);
+#else // Desktop/Editor
+    string fullPath = System.IO.Path.Combine(Application.streamingAssetsPath, pdfRelativePath);
+    fullPath = fullPath.Replace("\\", "/");
+
+    if (System.IO.File.Exists(fullPath))
+    {
+        Application.OpenURL("file:///" + fullPath);
+        Debug.Log($"[Functions] Desktop/Editor: Abrindo PDF: {fullPath}");
+        infoText.text = "Abrindo documento PDF...";
+    }
+    else
+    {
+        Debug.LogError($"[Functions] Arquivo PDF não encontrado em: {fullPath}");
+        infoText.text = "Documento PDF não encontrado.";
+    }
+#endif
+    }
+
+    public void OpenPDFWithNativeShare(string pdfRelativePath)
+    {
+        string fileNameOnly = System.IO.Path.GetFileName(pdfRelativePath);
+        string sourcePathForWebRequest = System.IO.Path.Combine(Application.streamingAssetsPath, pdfRelativePath);
+        string destPathForNativeShare = System.IO.Path.Combine(Application.persistentDataPath, fileNameOnly);
+
+        infoText.text = "Preparando documento...";
+        Debug.Log($"[Functions] Preparando PDF para NativeShare: {sourcePathForWebRequest}");
+
+        // UnityWebRequest para copiar o arquivo de StreamingAssets para PersistentDataPath
+        // (necessário porque NativeShare pode não conseguir ler diretamente de StreamingAssets no Android)
+        StartCoroutine(CopyFileAndCallNativeShare(sourcePathForWebRequest, destPathForNativeShare));
+    }
+
+    private IEnumerator CopyFileAndCallNativeShare(string sourcePath, string destPath)
+    {
+        using (UnityEngine.Networking.UnityWebRequest www = UnityEngine.Networking.UnityWebRequest.Get(sourcePath))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                try
+                {
+                    System.IO.File.WriteAllBytes(destPath, www.downloadHandler.data);
+                    Debug.Log($"[Functions] PDF copiado para {destPath}. Chamando NativeShare.");
+
+                    // *** AQUI É ONDE O NATIVESHARE ENTRA ***
+                    // Use AddFile para especificar o arquivo a ser aberto
+                    new NativeShare()
+                        .AddFile(destPath)
+                        .SetTitle("Abrir Documento") // Título para o seletor de app
+                        .SetCallback((result, shareTarget) => Debug.Log("Share result: " + result + ", target: " + shareTarget))
+                        .Share(); // Tenta abrir/compartilhar o arquivo.
+
+                    infoText.text = "Solicitação para abrir PDF enviada.";
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[Functions] Erro ao salvar ou chamar NativeShare: " + e.Message);
+                    infoText.text = "Erro ao abrir PDF.";
+                }
+            }
+            else
+            {
+                Debug.LogError("[Functions] Erro ao baixar PDF de StreamingAssets: " + www.error);
+                infoText.text = "Erro ao carregar PDF.";
+            }
+        }
+    }
+
+    private IEnumerator CopyAndOpenPDFAndroid(string sourcePathForWebRequest, string destPathForOpening)
+    {
+        infoText.text = "Baixando documento PDF...";
+        Debug.Log($"[Functions] Iniciando download do PDF de StreamingAssets: {sourcePathForWebRequest}");
+
+        // Use UnityWebRequest.Get para acessar StreamingAssets em Android/iOS
+        using (UnityEngine.Networking.UnityWebRequest www = UnityEngine.Networking.UnityWebRequest.Get(sourcePathForWebRequest))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                Debug.Log("[Functions] PDF baixado com sucesso de StreamingAssets.");
+                // Escreve os bytes baixados para o caminho persistente
+                try
+                {
+                    System.IO.File.WriteAllBytes(destPathForOpening, www.downloadHandler.data);
+                    Debug.Log($"[Functions] PDF salvo em PersistentDataPath: {destPathForOpening}");
+                    infoText.text = "Abrindo documento PDF...";
+
+                    // Abre o PDF usando um intent Android
+                    // ATENÇÃO: Para Android 7.0 (API 24) e superior, `Uri.fromFile` está obsoleto e pode causar `FileUriExposedException`.
+                    // A solução correta é usar `FileProvider`. Isso requer mais configuração.
+                    // Vou manter a sua implementação atual, mas esteja ciente desta limitação para Android 7+.
+                    // Para produção, considere um plugin ou FileProvider.
+
+                    AndroidJavaClass intentClass = new AndroidJavaClass("android.content.Intent");
+                    AndroidJavaObject intentObject = new AndroidJavaObject("android.content.Intent");
+                    intentObject.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_VIEW"));
+
+                    AndroidJavaClass uriClass = new AndroidJavaClass("android.net.Uri");
+                    AndroidJavaObject fileObject = new AndroidJavaObject("java.io.File", destPathForOpening);
+                    AndroidJavaObject uriObject = uriClass.CallStatic<AndroidJavaObject>("fromFile", fileObject); // Problema aqui para Android 7+
+
+                    intentObject.Call<AndroidJavaObject>("setDataAndType", uriObject, "application/pdf");
+                    intentObject.Call<AndroidJavaObject>("addFlags", 1); // FLAG_ACTIVITY_NEW_TASK (para abrir em uma nova tarefa)
+                    intentObject.Call<AndroidJavaObject>("addFlags", intentClass.GetStatic<int>("FLAG_GRANT_READ_URI_PERMISSION")); // Permissão de leitura para o app externo
+
+                    AndroidJavaClass unity = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                    AndroidJavaObject currentActivity = unity.GetStatic<AndroidJavaObject>("currentActivity");
+                    currentActivity.Call("startActivity", intentObject);
+                    Debug.Log("[Functions] Intent Android para abrir PDF disparado.");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[Functions] Erro ao salvar ou abrir PDF localmente: " + e.Message);
+                    infoText.text = "Erro ao abrir PDF.";
+                }
+            }
+            else
+            {
+                Debug.LogError("[Functions] Erro ao baixar PDF de StreamingAssets: " + www.error);
+                infoText.text = "Erro ao carregar PDF.";
+            }
+        }
+    }
+
+    public string GetSelectedObjectPDFFileName() // Novo método
+    {
+        string idOfCurrentlyDisplayedObject = qrCodeTextCache; // Prioriza ID do QR Code
+
+        // Se o QR Code falhou, tenta do objeto instanciado
+        if (string.IsNullOrEmpty(idOfCurrentlyDisplayedObject) || idOfCurrentlyDisplayedObject.Contains("Erro") || idOfCurrentlyDisplayedObject.Contains("Falha") || idOfCurrentlyDisplayedObject.Contains("não detectado"))
+        {
+            GameObject currentInstantiatedObject = trackedImageHandler.GetInstantiatedObject();
+            if (currentInstantiatedObject != null)
+            {
+                idOfCurrentlyDisplayedObject = trackedImageHandler.GetObjectIdForInstantiatedObject(currentInstantiatedObject);
+                if (string.IsNullOrEmpty(idOfCurrentlyDisplayedObject))
+                {
+                    idOfCurrentlyDisplayedObject = currentInstantiatedObject.name; // Fallback para nome
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(idOfCurrentlyDisplayedObject))
+        {
+            Debug.LogWarning("[Functions] Não foi possível obter ID para determinar o nome do PDF.");
+            return null;
+        }
+
+        // Usar ObjectInfoData para obter o nome do arquivo PDF, conforme configurado lá.
+        ObjectInfoData displayedInfo = allObjectInfos.Find(info =>
+            info != null &&
+            !string.IsNullOrEmpty(info.objectID) &&
+            string.Equals(info.objectID.Trim(), idOfCurrentlyDisplayedObject.Trim(), StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (displayedInfo != null && !string.IsNullOrEmpty(displayedInfo.pdfPathInStreamingAssets))
+        {
+            // Retorna apenas o nome do arquivo ou o caminho relativo dentro de StreamingAssets
+            // Ex: "docs/manual_planta1.pdf" ou "manual_planta1.pdf"
+            return displayedInfo.pdfPathInStreamingAssets;
+        }
+
+        Debug.LogWarning($"[Functions] Nenhum caminho PDF encontrado para a ID: {idOfCurrentlyDisplayedObject}.");
+        return null;
     }
 }

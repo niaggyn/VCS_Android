@@ -15709,6 +15709,7 @@ GameObject:
   - component: {fileID: 4503083560093895592}
   - component: {fileID: 2950326793821733711}
   - component: {fileID: 6352226081575405943}
+  - component: {fileID: -5918917374727362675}
   m_Layer: 0
   m_Name: Planta2
   m_TagString: construction2
@@ -15725,7 +15726,7 @@ Transform:
   m_GameObject: {fileID: 8723831253426669392}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.70710677, z: 0.70710677, w: 0}
-  m_LocalPosition: {x: 0, y: -18, z: -1.2}
+  m_LocalPosition: {x: 0, y: -16.5, z: -1.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -15832,8 +15833,21 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 4.772084, y: 7.624298, z: 21.608921}
-  m_Center: {x: 0.58032084, y: 3.5495791, z: 6.1731815}
+  m_Size: {x: 4.772084, y: 7.624298, z: 21.086607}
+  m_Center: {x: 0.58032084, y: 3.5495846, z: 5.912037}
+--- !u!114 &-5918917374727362675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8723831253426669392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97c6d85622a22614eb3633eeac12d95a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  objectID: Planta2
 --- !u!1 &8739131465884856418
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,26 +1,51 @@
-
 using System.Collections.Generic;
 using UnityEngine;
-
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
 
+[System.Serializable]
+public class ARModelMapping
+{
+    // O nome da imagem no seu AR Reference Image Library
+    public string referenceImageName;
+
+    // O Prefab 3D que será instanciado para esta imagem
+    public GameObject prefabToInstantiate;
+
+    // O Scriptable Object com as informações detalhadas para este modelo
+    public ObjectInfoData objectInfo;
+}
 
 public class ImageTracker : MonoBehaviour
 {
     private ARTrackedImageManager trackedImages;
-    public GameObject[] ArPrefabs;
+    public List<ARModelMapping> arModelMappings; // Lista de mapeamentos entre imagens e prefabs
+    //public GameObject[] ArPrefabs;
+    private Dictionary<string, ARModelMapping> mappingDictionary = new Dictionary<string, ARModelMapping>();
     public bool isObjectInstantiated = false;
     private GameObject selectedObject; // Objeto atualmente selecionado
     public bool newScan = false; // Flag to track if a new scan is initiated
-
     public List<GameObject> ARObjects = new List<GameObject>();
+    private Dictionary<GameObject, string> instanceIdMap = new Dictionary<GameObject, string>();
 
 
     void Awake()
     {
         trackedImages = GetComponent<ARTrackedImageManager>();
+
+
+        foreach (var mapping in arModelMappings)
+        {
+            if (mappingDictionary.ContainsKey(mapping.referenceImageName))
+            {
+                Debug.LogWarning($"[ImageTracker] Mapeamento duplicado para imagem de referência: '{mapping.referenceImageName}'. Ignorando duplicata.");
+                continue;
+            }
+            mappingDictionary.Add(mapping.referenceImageName, mapping);
+        }
+        Debug.Log($"[ImageTracker] Dicionário de mapeamentos carregado. Total: {mappingDictionary.Count} entradas.");
+
     }
 
     void Update()
@@ -30,173 +55,172 @@ public class ImageTracker : MonoBehaviour
 
     void OnEnable()
     {
-        //trackedImages.trackedImagesChanged += OnTrackedImagesChanged;
         if (trackedImages != null)
         {
             trackedImages.trackedImagesChanged += OnTrackedImagesChanged;
+            Debug.Log("[ImageTracker] Assinado ao evento trackedImagesChanged.");
+        }
+        else
+        {
+            Debug.LogError("[ImageTracker] ARTrackedImageManager não encontrado. Certifique-se de que este script está no mesmo GameObject ou referenciado corretamente.");
         }
     }
 
     void OnDisable()
     {
-        //trackedImages.trackedImagesChanged -= OnTrackedImagesChanged;
         if (trackedImages != null)
         {
             trackedImages.trackedImagesChanged -= OnTrackedImagesChanged;
+            Debug.Log("[ImageTracker] Desassinado do evento trackedImagesChanged.");
         }
     }
 
     private void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
     {
-        // Handle newly added tracked images
+        // --- Imagens Adicionadas (Nova detecção de marcador) ---
         foreach (var trackedImage in eventArgs.added)
         {
-            Debug.Log("Marcador encontrado: " + trackedImage.referenceImage.name);
-            foreach (var arPrefab in ArPrefabs)
-            {
-                Debug.Log("Prefab encontrado: " + arPrefab.name);
-                if (trackedImage.referenceImage.name == arPrefab.name)
-                {
-                    // Verifica se o prefab já foi instanciado
-                    var existingPrefab = ARObjects.Find(obj => obj.name == arPrefab.name);
-                    if (existingPrefab != null && !isObjectInstantiated)
-                    {
-                        // Reactiva o prefab existente
-                        existingPrefab.SetActive(true);
-                        existingPrefab.transform.position = trackedImage.transform.position;
-                        existingPrefab.transform.rotation = trackedImage.transform.rotation;
-                        Debug.Log("Prefab foi Reativado: " + existingPrefab.name);
-                        isObjectInstantiated = true; // Set to true after instantiation
-                    }
-                    else
-                    {
-                        // Instancia um novo prefab se não existir
-                        var newPrefab = Instantiate(arPrefab, trackedImage.transform);
-                        newPrefab.SetActive(true); // Ativa o prefab
-                        newPrefab.name = arPrefab.name; // Garante que o nome corresponda à imagem de referência
-                        ARObjects.Add(newPrefab);
-                        isObjectInstantiated = true; // Set to true after instantiation
-                        Debug.Log("Prefab Instanciado: " + arPrefab.name);
-                    }
-
-                }
-            }
+            Debug.Log($"[ImageTracker] Marcador ADICIONADO: {trackedImage.referenceImage.name}. Estado: {trackedImage.trackingState}");
+            HandleTrackedImageAddedOrUpdated(trackedImage);
         }
 
-        // Handle updated tracked images
+        // --- Imagens Atualizadas (Marcador já detectado, estado mudou/posição atualizada) ---
         foreach (var trackedImage in eventArgs.updated)
         {
-            foreach (var gameObject in ARObjects)
-            {
-                if (gameObject.name == trackedImage.referenceImage.name)
-                {
-                    //camera no marcador
-                    if (trackedImage.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking)
-                    {
-                        //Debug.Log("Rastreamento ativo: " + trackedImage.referenceImage.name);
-                        // Reactiva o prefab se ele estiver desativado
-                        if (newScan && !isObjectInstantiated)
-                        {
-                            // Se newScan não estiver ativo, ativa o objeto
-                            Debug.Log("Rastreamento ativo e newScan ativo. Ativando objeto.");
-                            gameObject.SetActive(true);
-                            Debug.Log("Prefab Reativado: " + gameObject.name);
-                            isObjectInstantiated = true;
-                            newScan = false; // Reset newScan flag after reactivation
-                        }
-
-                    }
-                    else
-                    {
-                        Debug.Log("camera fora do marcador");
-                        if (newScan && gameObject.activeSelf)
-                        {
-                            // Se o rastreamento não estiver ativo e newScan estiver ativo, ativa o objeto
-                            Debug.Log("newScan ativo, marcador fora da camera. Desativando objeto.");
-                            gameObject.SetActive(false);
-                            gameObject.transform.position = trackedImage.transform.position;
-                            gameObject.transform.rotation = trackedImage.transform.rotation;
-                            Debug.Log("Prefab Desativado: " + gameObject.name);
-                            isObjectInstantiated = false; // Set to true after instantiation
-                        }
-                        else
-                        {
-                            Debug.Log("Rastreamento ativo e camera fora do marcador: " + trackedImage.referenceImage.name);
-                            if (newScan && gameObject.activeSelf)
-                            {
-                                // Se o rastreamento não estiver ativo e newScan estiver ativo, ativa o objeto
-                                Debug.Log("newScan ativo, marcador fora da camera. Desativando objeto.");
-                                gameObject.SetActive(false);
-                                gameObject.transform.position = trackedImage.transform.position;
-                                gameObject.transform.rotation = trackedImage.transform.rotation;
-                                Debug.Log("Prefab Desativado: " + gameObject.name);
-                                isObjectInstantiated = false; // Set to true after instantiation
-                            }
-                        }
-                    }
-                }
-            }
+            Debug.Log($"[ImageTracker] Marcador ATUALIZADO: {trackedImage.referenceImage.name}. Estado: {trackedImage.trackingState}");
+            HandleTrackedImageAddedOrUpdated(trackedImage); // Reutiliza a lógica para consistência
         }
 
-        // Handle removed tracked images
+        // --- Imagens Removidas (Marcador fora da câmera/perdido) ---
         foreach (var trackedImage in eventArgs.removed)
         {
-            foreach (var gameObject in ARObjects)
+            Debug.Log($"[ImageTracker] Marcador REMOVIDO: {trackedImage.referenceImage.name}. Estado: {trackedImage.trackingState}");
+            //HandleTrackedImageRemoved(trackedImage);
+        }
+    }
+
+    // NOVO: Método auxiliar para lidar com adição/atualização de imagens
+    private void HandleTrackedImageAddedOrUpdated(ARTrackedImage trackedImage)
+    {
+        string imageName = trackedImage.referenceImage.name;
+        Debug.Log($"[ImageTracker] Processando imagem: {imageName} com estado {trackedImage.trackingState}");
+        // Tentar obter o mapeamento para esta imagem
+        if (mappingDictionary.TryGetValue(imageName, out ARModelMapping currentMapping))
+        {
+            GameObject instantiatedModel = ARObjects.Find(obj => obj != null && obj.name == currentMapping.prefabToInstantiate.name);
+            Debug.Log($"[ImageTracker] Mapeamento encontrado para '{imageName}': Prefab = {currentMapping.prefabToInstantiate.name}, ObjectID = {currentMapping.objectInfo?.objectID}");
+            if (trackedImage.trackingState == TrackingState.Tracking)
             {
-                if (gameObject.name == trackedImage.referenceImage.name)
+                if (instantiatedModel == null)
                 {
-                    // Desativa o prefab se o rastreamento for removido
-                    if (gameObject.activeSelf)
-                    {
-                        gameObject.SetActive(false);
-                        Debug.Log("Prefab Desativado (removed): " + gameObject.name);
-                    }
+                    // Instanciar se não existe
+                    instantiatedModel = Instantiate(currentMapping.prefabToInstantiate, trackedImage.transform);
+                    instantiatedModel.name = currentMapping.prefabToInstantiate.name; // Garante que o nome seja o do prefab original
+                    ARObjects.Add(instantiatedModel);
+                    instanceIdMap[instantiatedModel] = currentMapping.objectInfo?.objectID; // Armazena a ID do objeto
+                    instantiatedModel.SetActive(true); // Ativa o objeto instanciado
+                    Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' INSTANCIADO e ID '{currentMapping.objectInfo?.objectID}' associada.");
                 }
+                else if (!instantiatedModel.activeSelf)
+                {
+                    // Reativar se existe mas está desativado
+                    instantiatedModel.SetActive(true);
+                    Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' REATIVADO.");
+                }
+                Debug.Log($"Instanciado em pos: {instantiatedModel.transform.position}, local: {instantiatedModel.transform.localPosition}, escala: {instantiatedModel.transform.localScale}, ativo: {instantiatedModel.activeSelf}");
+                // Atualiza posição e rotação para o marcador (faça isso sempre que estiver rastreando)
+                //instantiatedModel.transform.position = trackedImage.transform.position;
+                //instantiatedModel.transform.rotation = trackedImage.transform.rotation;
+                isObjectInstantiated = true; // Define que pelo menos um objeto está instanciado/ativo
+                SetSelectedObject(instantiatedModel); // Opcional: Define o objeto rastreado como o 'selectedObject'
+            }
+            else // TrackingState.Limited ou TrackingState.None (marcador fora da câmera ou rastreamento ruim)
+            {
+                if (instantiatedModel != null && instantiatedModel.activeSelf)
+                {
+                    // Se o rastreamento é limitado/perdido, desativar o objeto
+                    //instantiatedModel.SetActive(false);
+                    Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' DESATIVADO (rastreamento perdido).");
+                    //isObjectInstantiated = false; // Se todos os objetos estiverem inativos, isso deve ser false.
+                                                  // Você pode precisar de uma lógica mais sofisticada se tiver vários objetos.
+                                                  // Ex: verificar se ARObjects.Any(obj => obj.activeSelf)
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[ImageTracker] Nenhum mapeamento encontrado para a imagem de referência: '{imageName}'. Certifique-se de que está na lista 'AR Model Mappings'.");
+        }
+    }
+
+    // NOVO: Método auxiliar para lidar com imagens removidas
+    private void HandleTrackedImageRemoved(ARTrackedImage trackedImage)
+    {
+        string imageName = trackedImage.referenceImage.name;
+        if (mappingDictionary.TryGetValue(imageName, out ARModelMapping currentMapping))
+        {
+            GameObject instantiatedModel = ARObjects.Find(obj => obj != null && obj.name == currentMapping.prefabToInstantiate.name);
+            if (instantiatedModel != null && instantiatedModel.activeSelf)
+            {
+                instantiatedModel.SetActive(false);
+                Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' DESATIVADO (marcador removido).");
+                // Verificar se ainda há outros objetos ativos antes de definir isObjectInstantiated para false
+                isObjectInstantiated = ARObjects.Exists(obj => obj != null && obj.activeSelf);
             }
         }
     }
 
-    public void InstantiateObject()
+    // Seu método GetInstantiatedObject() pode precisar de ajustes se você tiver vários objetos ativos.
+    // Atualmente, ele retorna o primeiro objeto ativo que encontrar.
+    public GameObject GetInstantiatedObject()
     {
-        if (!isObjectInstantiated)
+        foreach (var kvp in instanceIdMap)
         {
-            isObjectInstantiated = true; // Set to true after instantiation
+            if (kvp.Key != null && kvp.Key.activeSelf)
+                return kvp.Key;
         }
+        return null;
+
     }
 
-    public void OnNewScan()
+    // NOVO: Método para obter a ID do ObjectInfoData de um GameObject instanciado
+    public string GetObjectIdForInstantiatedObject(GameObject instantiatedGameObject)
     {
-        Debug.Log("Novo scan solicitado.");
-        foreach (var obj in ARObjects)
+        if (instantiatedGameObject != null && instanceIdMap.ContainsKey(instantiatedGameObject))
         {
-            obj.SetActive(false);
-            Debug.Log("Prefab Desativado: " + obj.name);
+            return instanceIdMap[instantiatedGameObject];
         }
-        isObjectInstantiated = false;
-        newScan = true;
+        return null; // Retorna null se a ID não for encontrada
     }
 
-    // Método para definir o objeto selecionado
+    // Define o objeto atualmente selecionado
     public void SetSelectedObject(GameObject obj)
     {
         selectedObject = obj;
     }
 
-    // Método para obter o objeto selecionado
+    // Retorna o objeto atualmente selecionado
     public GameObject GetSelectedObject()
     {
-        return selectedObject; // Retorna o objeto atualmente selecionado
+        return selectedObject;
     }
-    public GameObject GetInstantiatedObject()
+
+    // ... (restante dos seus métodos como InstantiateObject, OnNewScan, SetSelectedObject, GetSelectedObject) ...
+
+    public void OnNewScan()
     {
+        Debug.Log("[ImageTracker] Novo scan solicitado. Desativando todos os objetos AR.");
         foreach (var obj in ARObjects)
         {
-            if (obj.activeSelf)
+            if (obj != null && obj.activeSelf) // Só desativa se estiver ativo
             {
-                return obj; // Retorna o objeto atualmente instanciado
-                
+                obj.SetActive(false);
+                Debug.Log($"[ImageTracker] Prefab desativado no new scan: {obj.name}");
             }
         }
-        return null; // Retorna null se nenhum objeto estiver ativo
+        isObjectInstantiated = false;
+        newScan = true; // Esta flag pode ser reavaliada se você usa os estados de Functions.cs
     }
+
+    
 }

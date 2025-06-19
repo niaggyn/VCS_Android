@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd38703037bdb304e9fe51e253921220, type: 3}
+  m_Name: Planta2
+  m_EditorClassIdentifier: 
+  objectID: Planta2
+  objectName: PROJETO_RESIDENCIAL
+  technicalInfoFormattedText: "Nome: Projeto REFOMA Residencial/Comercial\r\n\xC1rea
+    Constru\xEDda: 145m\xB2\r\n\xC1rea a ser Constru\xEDda: 99m\xB2 \r\nEscala: REAL\r\nPer\xEDmetro:
+    49,98m\xB2\r\nLimites: 20,34m x 4.65m\r\nAltura: 7,15m\r\nTotal de c\xF4modos:
+    7\r\nPara Mais Informa\xE7\xF5es Consulte no Projeto!\n"
+  pdfPathInStreamingAssets: docs/Planta2.pdf

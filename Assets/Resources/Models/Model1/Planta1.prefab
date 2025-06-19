@@ -472,6 +472,7 @@ GameObject:
   - component: {fileID: 6555980425251408997}
   - component: {fileID: 6775760927909379362}
   - component: {fileID: 1277289805554189466}
+  - component: {fileID: 5546935546265613540}
   m_Layer: 0
   m_Name: Planta1
   m_TagString: construction
@@ -487,7 +488,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5796505463468998483}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 1
@@ -590,6 +591,19 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.6270814, y: 0.90741074, z: 1.589204}
   m_Center: {x: -0.0125591755, y: 0.45452887, z: -0.008417189}
+--- !u!114 &5546935546265613540
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5796505463468998483}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97c6d85622a22614eb3633eeac12d95a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  objectID: Planta1
 --- !u!1 &5949379751267928728
 GameObject:
   m_ObjectHideFlags: 0
