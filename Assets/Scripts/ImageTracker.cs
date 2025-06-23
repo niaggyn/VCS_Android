@@ -21,7 +21,6 @@ public class ImageTracker : MonoBehaviour
 {
     private ARTrackedImageManager trackedImages;
     public List<ARModelMapping> arModelMappings; // Lista de mapeamentos entre imagens e prefabs
-    //public GameObject[] ArPrefabs;
     private Dictionary<string, ARModelMapping> mappingDictionary = new Dictionary<string, ARModelMapping>();
     public bool isObjectInstantiated = false;
     private GameObject selectedObject; // Objeto atualmente selecionado
@@ -33,8 +32,6 @@ public class ImageTracker : MonoBehaviour
     void Awake()
     {
         trackedImages = GetComponent<ARTrackedImageManager>();
-
-
         foreach (var mapping in arModelMappings)
         {
             if (mappingDictionary.ContainsKey(mapping.referenceImageName))
@@ -45,7 +42,6 @@ public class ImageTracker : MonoBehaviour
             mappingDictionary.Add(mapping.referenceImageName, mapping);
         }
         Debug.Log($"[ImageTracker] Dicionário de mapeamentos carregado. Total: {mappingDictionary.Count} entradas.");
-
     }
 
     void Update()
@@ -142,8 +138,8 @@ public class ImageTracker : MonoBehaviour
                     //instantiatedModel.SetActive(false);
                     Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' DESATIVADO (rastreamento perdido).");
                     //isObjectInstantiated = false; // Se todos os objetos estiverem inativos, isso deve ser false.
-                                                  // Você pode precisar de uma lógica mais sofisticada se tiver vários objetos.
-                                                  // Ex: verificar se ARObjects.Any(obj => obj.activeSelf)
+                    // Você pode precisar de uma lógica mais sofisticada se tiver vários objetos.
+                    // Ex: verificar se ARObjects.Any(obj => obj.activeSelf)
                 }
             }
         }
@@ -223,4 +219,5 @@ public class ImageTracker : MonoBehaviour
     }
 
     
+
 }

@@ -33,10 +33,8 @@ public class Functions : MonoBehaviour
     public bool isSelected = false; // Flag to track if the button is selected
     private string qrCodeTextCache = null; // Cache for the QR code text to avoid re-reading
     private bool isWaitingForSecondClick = false; // Flag to track if waiting for a second click
-    //private bool secondClick = false; // Flag to track if the second click is registered
     public GameObject selectObjectLayerButtonIcon; // Reference to the RawImage component
     public GameObject selectObjectButtonIcon; // Reference to the RawImage component
-
     public GameObject rotationObjectButtonIcon; // Reference to the RawImage component
     public GameObject infoObjectButtonIcon; // Reference to the RawImage component
     public GameObject infoBoxBackground; // Reference to the RawImage component
@@ -110,8 +108,6 @@ public class Functions : MonoBehaviour
         elevationActions.SetActive(false); // Desativa o painel de ações de elevação
         elevationButtonIcon.SetActive(false); // Botão "Elevação" (se necessário)
         homeReturnButton.gameObject.SetActive(false); // Desativa o botão "Home" para reiniciar o app
-        // Os botões reais (com componente Button) também precisam ser ativados/desativados.
-        // Se selectButton e infoButton são os componentes Button, e os GameObject.Icons são apenas visuais:
         if (selectButton != null) selectButton.gameObject.SetActive(false);
         if (infoButton != null) infoButton.gameObject.SetActive(false);
 
@@ -139,9 +135,9 @@ public class Functions : MonoBehaviour
                 break;
 
             case AppState.ObjectFound:
-                // GameObject obj = trackedImageHandler.GetInstantiatedObject(); // Puxe o objeto aqui se precisar do nome
-                //infoText.text = "Objeto encontrado: " + (obj != null ? obj.name : "N/A");
-                infoText.text = "Objeto encontrado!"; // Mensagem genérica para este estado, o nome pode vir de outro lugar.
+                GameObject obj = trackedImageHandler.GetInstantiatedObject(); // Puxe o objeto aqui se precisar do nome
+                infoText.text = "Objeto encontrado: " + (obj != null ? obj.name : "N/A");
+                //infoText.text = "Objeto encontrado!"; // Mensagem genérica para este estado, o nome pode vir de outro lugar.
                 feedBackInfo(infoBoxBackground, Color.green);
                 homeReturnButton.gameObject.SetActive(true); // Botão "Home" para reiniciar o app
                 infoText.color = Color.black; // Define a cor do texto de info
@@ -265,6 +261,8 @@ public class Functions : MonoBehaviour
         {
             Debug.LogError("ARCameraManager não está configurado. Certifique-se de que o componente ARCameraManager está atribuído.");
         }
+        //SelectionManager.Instance.OnObjectSelected += HandleObjectSelected;
+        //SelectionManager.Instance.OnObjectDeselected += HandleObjectDeselected;
         // É importante adicionar listeners para OUTROS botões (rotation, layer select, new scan, reset)
         // se eles não forem configurados no Inspector. Se forem via Inspector, não precisa aqui.
         // Exemplo:
@@ -292,7 +290,6 @@ public class Functions : MonoBehaviour
     void Update()
     {
         // --- Lógica de Detecção e Atualização de Estado do Aplicativo ---
-        // (Mantenha esta seção como está, ela está boa)
         if (!checkTrack())
         {
             SetAppState(AppState.Scanning);
@@ -338,7 +335,6 @@ public class Functions : MonoBehaviour
                 // ou para que um drag iniciado na UI possa ser ignorado pelo arrasto 3D,
                 // mas o GetMouseButtonUp() ainda possa ser processado.
                 isWaitingForSecondClick = false;
-                // canDragToRotate = false; // Não resete aqui, o botão de rotação irá definir isso.
                 Debug.Log("Input.GetMouseButtonDown(0) sobre UI.");
             }
             else
@@ -443,7 +439,6 @@ public class Functions : MonoBehaviour
                     canDragToRotate = false; // Desativa o arrasto para rotação
                 }
                 // O arrasto está sobre a UI. Não rotacionar o objeto 3D.
-                // Debug.Log("Arrasto sobre UI, rotação 3D bloqueada.");
             }
         }
 
@@ -486,7 +481,6 @@ public class Functions : MonoBehaviour
             // NOTA: Os botões de elevação SÃO elementos UI.
             // O isPointerOverUIThisFrame só é para a lógica de RAYCASTING 3D.
             // A lógica abaixo NÃO é afetada pelo isPointerOverUIThisFrame.
-
             if (elevateUpHandler != null && elevateUpHandler.IsBeingPressed)
             {
                 Debug.Log("Botão de Elevar Para Cima pressionado.");
@@ -500,7 +494,6 @@ public class Functions : MonoBehaviour
                 ElevateObject(Vector3.down);
             }
         }
-
 
         // Se não está no estado de rotação, garante que isDragging e canDragToRotate sejam false
         if (currentAppState != AppState.ObjectRotating)
@@ -604,7 +597,29 @@ public class Functions : MonoBehaviour
     public void newScan()
     {
         Debug.Log("Iniciando novo scan. Prefabs serão desativados!");
-        clearVirtualizedObject();
+
+        // Desseleciona o objeto atualmente selecionado
+        if (SelectionManager.Instance.HasSelection())
+        {
+            SelectionManager.Instance.DeselectObject();
+        }
+
+        // Reseta estados e flags relevantes
+        isSelected = false;
+        isOriginalPositionStored = false;
+        qrCodeTextCache = null;
+        isWaitingForSecondClick = false;
+
+        // Se necessário, desative ou limpe outros elementos da UI
+        textInfoTechnical.SetActive(false);
+        tecnicalTextOfObject.text = "";
+        infoText.text = "Aguardando novo marcador...";
+
+        // Chame o método do ImageTracker para iniciar novo scan
+        if (trackedImageHandler != null)
+        {
+            clearVirtualizedObject(); // Limpa o objeto virtualizado atual
+        }
         SetAppState(AppState.Scanning); // Define o estado final
     }
 
@@ -803,13 +818,10 @@ public class Functions : MonoBehaviour
         }
     }
 
-
     public void feedBackInfo(GameObject gameObject, Color newCor)
     {
-        //Color color = gameObject.GetComponent<Image>().color;
         Color cor = newCor; // Define a cor verde
         gameObject.GetComponent<Image>().color = cor; // Aplica a nova cor
-        //Debug.Log("Cor do botão alterada para: " + cor); // Log para depuração
     }
 
     public void dropdownMenuButton(ImageTracker imageTracker)
@@ -830,8 +842,6 @@ public class Functions : MonoBehaviour
                 if (selectedObject != null)
                 {
                     Debug.Log("Exibindo camadas do Objeto: " + selectedObject.name);
-
-                    // Aqui você pode, por exemplo, preencher um TMP_Dropdown com os nomes das camadas:
                     TMP_Dropdown dropdown = dropdownMenu.GetComponentInChildren<TMP_Dropdown>();
                     if (dropdown != null)
                     {
@@ -961,7 +971,6 @@ public class Functions : MonoBehaviour
             infoText.text = $"Movendo: {selected.name} Y: {selected.transform.position.y:F2}";
         }
     }
-
 
     private void ResetAndHideDropdownMenu()
     {
@@ -1239,11 +1248,6 @@ public class Functions : MonoBehaviour
             // ... (sua lógica de dispose) ...
             isReadingQRCode = false;
             Debug.Log("Processamento de imagem para QR Code finalizado. isReadingQRCode = false.");
-
-            // Chame a função para exibir as informações aqui, agora que o cache foi atualizado
-
-            //DisplayAppropriateObjectInfo();
-            //Debug.Log("INFORACOES EXIBIDA FORCADAMENTE PELO UNITASK PROCESSADO.");
         }
     }
 
@@ -1304,7 +1308,6 @@ public class Functions : MonoBehaviour
             }
         }
     }
-
 
     public void OpenPDFConsult()
     {
@@ -1485,4 +1488,28 @@ public class Functions : MonoBehaviour
         Debug.LogWarning($"[Functions] Nenhum caminho PDF encontrado para a ID: {idOfCurrentlyDisplayedObject}.");
         return null;
     }
+
+    private void HandleObjectSelected(GameObject obj)
+{
+    Debug.Log($"[Functions] Evento: Objeto '{obj.name}' selecionado.");
+    SetAppState(AppState.ObjectSelected); // Garante que o estado da UI é atualizado
+    StoreOriginalPosition(obj); // Armazena a posição original do *novo* objeto selecionado
+    // infoText.text etc. será atualizado pelo UpdateUIBasedOnState
+}
+
+private void HandleObjectDeselected(GameObject obj)
+{
+    Debug.Log($"[Functions] Evento: Objeto '{obj?.name ?? "NULL"}' desselecionado.");
+    // Volte ao AppState.ObjectFound se houver objetos AR visíveis mas nenhum selecionado
+    // Ou AppState.Scanning se não houver mais objetos AR.
+    bool anyARObjectActive = trackedImageHandler.ARObjects.Exists(o => o.activeSelf);
+    if (anyARObjectActive)
+    {
+        SetAppState(AppState.ObjectFound);
+    }
+    else
+    {
+        SetAppState(AppState.Scanning);
+    }
+}
 }

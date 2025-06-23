@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<Config xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <IfcConvertPath>E:\AR\VCS_Android\Assets\Editor\IfcConvert\IfcConvert-x64.exe</IfcConvertPath>
-  <OutputPath>E:\AR\VCS_Android\Assets\Meshes</OutputPath>
-  <AutomaticTextureMapGeneration>false</AutomaticTextureMapGeneration>
-</Config>
