@@ -396,7 +396,7 @@ public class SelectionManager : MonoBehaviour
         return child.CompareTag("forros") || child.CompareTag("janelas") || child.CompareTag("colunas")
             || child.CompareTag("portas") || child.CompareTag("paredes") || child.CompareTag("pisos")
             || child.CompareTag("telhados") || child.CompareTag("escadas") || child.CompareTag("mobilia")
-            || child.CompareTag("paisagismo") || child.CompareTag("eletrico") || child.CompareTag("hidrosanitario")
+            || child.CompareTag("paisagismo") || child.CompareTag("eletrico") || child.CompareTag("hidrosanitária")
             || child.CompareTag("estrutural") || child.CompareTag("outros") || child.CompareTag("tubulacao")
             || child.CompareTag("guarda-corpos");
     }

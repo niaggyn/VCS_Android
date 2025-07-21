@@ -6663,7 +6663,7 @@ GameObject:
   - component: {fileID: 8634729782838092570}
   m_Layer: 0
   m_Name: "Pain\xE9is anal\xEDticos"
-  m_TagString: Untagged
+  m_TagString: escadas
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -8911,7 +8911,7 @@ GameObject:
   - component: {fileID: 5410169822065668228}
   m_Layer: 0
   m_Name: Polygonal object 1
-  m_TagString: Untagged
+  m_TagString: escadas
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
