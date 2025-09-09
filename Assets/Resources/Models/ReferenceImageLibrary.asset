@@ -37,3 +37,13 @@ MonoBehaviour:
     m_SpecifySize: 0
     m_Name: Planta2
     m_Texture: {fileID: 2800000, guid: cb29a60c5fd16ed4cb86feaf915530f5, type: 3}
+  - m_SerializedGuid:
+      m_GuidLow: 5383039071630215824
+      m_GuidHigh: 6467875252216362670
+    m_SerializedTextureGuid:
+      m_GuidLow: 7544745110325904942
+      m_GuidHigh: 4549228882701782344
+    m_Size: {x: 0, y: 0}
+    m_SpecifySize: 0
+    m_Name: Planta3
+    m_Texture: {fileID: 0}

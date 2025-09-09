@@ -109,6 +109,7 @@ public class ImageTracker : MonoBehaviour
             {
                 if (instantiatedModel == null)
                 {
+                    /*
                     // Instanciar se não existe
                     instantiatedModel = Instantiate(currentMapping.prefabToInstantiate, trackedImage.transform);
                     instantiatedModel.name = currentMapping.prefabToInstantiate.name; // Garante que o nome seja o do prefab original
@@ -116,6 +117,34 @@ public class ImageTracker : MonoBehaviour
                     instanceIdMap[instantiatedModel] = currentMapping.objectInfo?.objectID; // Armazena a ID do objeto
                     instantiatedModel.SetActive(true); // Ativa o objeto instanciado
                     Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' INSTANCIADO e ID '{currentMapping.objectInfo?.objectID}' associada.");
+                    */
+
+                    // --- Criar um Anchor fixo ---
+                    GameObject anchor = new GameObject("Anchor_" + imageName);
+                    anchor.transform.position = trackedImage.transform.position;
+                    anchor.transform.rotation = trackedImage.transform.rotation;
+
+                    // --- Instanciar o modelo como filho do Anchor ---
+                    instantiatedModel = Instantiate(currentMapping.prefabToInstantiate, anchor.transform);
+                    instantiatedModel.name = currentMapping.prefabToInstantiate.name;
+                    ARObjects.Add(instantiatedModel);
+                    instanceIdMap[instantiatedModel] = currentMapping.objectInfo?.objectID;
+
+                    // --- Corrigir rotação conforme tipo de marcador ---
+                    if (imageName.ToLower().Contains("horizontal"))
+                    {
+                        // Mantém o objeto "em pé", alinhado só no Y
+                        instantiatedModel.transform.localRotation = Quaternion.Euler(0, anchor.transform.rotation.eulerAngles.y, 0);
+                    }
+                    else if (imageName.ToLower().Contains("vertical"))
+                    {
+                        // Aplica offset de 90° no X para corrigir marcador na parede
+                        instantiatedModel.transform.localRotation = Quaternion.Euler(90, anchor.transform.rotation.eulerAngles.y, 0);
+                    }
+
+                    instantiatedModel.SetActive(true);
+                    Debug.Log($"[ImageTracker] Prefab '{instantiatedModel.name}' INSTANCIADO em Anchor '{anchor.name}'.");
+
                 }
                 else if (!instantiatedModel.activeSelf)
                 {
@@ -218,6 +247,6 @@ public class ImageTracker : MonoBehaviour
         newScan = true; // Esta flag pode ser reavaliada se você usa os estados de Functions.cs
     }
 
-    
+
 
 }

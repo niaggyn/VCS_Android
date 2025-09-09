@@ -344,6 +344,7 @@ public class Functions : MonoBehaviour
                 // Processa o segundo clique para seleção de objetos/camadas
                 if (isWaitingForSecondClick) // Se a flag foi ativada por ClickSelect() ou ClickSelectLayer()
                 {
+
                     // A lógica de raycast para seleção do objeto 3D
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                     RaycastHit hit;
@@ -351,8 +352,6 @@ public class Functions : MonoBehaviour
                     if (Physics.Raycast(ray, out hit, 100))
                     {
                         GameObject hitObj = hit.transform.gameObject;
-                        Debug.Log($"Raycast atingiu: {hitObj.name} com a tag: {hitObj.tag}");
-
                         if (currentAppState == AppState.LayerSelectionMode)
                         {
                             if (validTags.Contains(hitObj.tag))
@@ -391,6 +390,75 @@ public class Functions : MonoBehaviour
                         infoText.text = "Nenhum Objeto encontrado. Clique novamente para selecionar.";
                     }
                     isWaitingForSecondClick = false; // Resetar após a tentativa de clique 3D
+
+
+                    /*// LÓGICA ANTIGA, COMENTADA PARA REFERÊNCIA
+                    if (Physics.Raycast(ray, out hit, 100))
+                    {
+                        // O hitObj é o objeto que o raycast realmente atingiu (o pai, com o collider).
+                        GameObject hitObj = hit.transform.gameObject;
+
+                        GameObject selectedMainObject = null;
+                        GameObject selectedLayerObject = null;
+
+                        // ----- NOVA LÓGICA: PROCURA NA HIERARQUIA -----
+                        // Itera para cima na hierarquia a partir do objeto atingido para encontrar o objeto principal
+                        Transform currentTransform = hit.transform;
+                        while (currentTransform != null)
+                        {
+                            // Se a tag do objeto for uma tag de camada (paredes, etc.)
+                            if (validTags.Contains(currentTransform.tag))
+                            {
+                                selectedLayerObject = currentTransform.gameObject;
+                                // Encontrou a camada, pode parar de subir a partir daqui para a camada.
+                                // Continuamos a subir para ver se há um objeto principal.
+                            }
+
+                            // Se a tag for de um objeto principal (ex: "construction" ou "construction2")
+                            // ou se o objeto for o pai mais alto do prefab AR.
+                            // A lógica de `rootObject` é boa, mas esta é mais granular.
+                            if (currentTransform.CompareTag("construction") || currentTransform.CompareTag("construction2"))
+                            {
+                                selectedMainObject = currentTransform.gameObject;
+                                break; // Encontrou o objeto principal, pode sair do loop
+                            }
+
+                            currentTransform = currentTransform.parent;
+                        }
+                        // ----- FIM DA NOVA LÓGICA -----
+
+                        // A partir daqui, a lógica de seleção de objeto e camada pode ser aprimorada
+                        if (selectedMainObject != null)
+                        {
+                            // Se encontramos um objeto principal na hierarquia, selecionamos ele.
+                            SelectionManager.Instance.SelectObject(selectedMainObject);
+                            StoreOriginalPosition(selectedMainObject);
+                            infoText.text = "Objeto selecionado: " + selectedMainObject.name;
+                            SetAppState(AppState.ObjectSelected);
+
+                            // Se o modo de seleção de camada está ativo E uma camada foi clicada
+                            if (SelectionManager.Instance.IsLayerSelectionActive() && selectedLayerObject != null)
+                            {
+                                // Seleciona a camada que foi clicada e exibe as informações da camada.
+                                SelectionManager.Instance.SelectLayer(selectedLayerObject);
+                                infoText.text = "Camada selecionada: " + selectedLayerObject.name;
+                                // O AppState já foi definido como ObjectSelected.
+                            }
+                        }
+                        else
+                        {
+                            // Não acertou um objeto principal ou camada com tag.
+                            infoText.text = "Clique inválido. Tente novamente.";
+                            SelectionManager.Instance.DeselectObject();
+                        }
+                    }
+                    else // Raycast não acertou nada
+                    {
+                        infoText.text = "Nenhum Objeto encontrado. Clique novamente para selecionar.";
+                        SelectionManager.Instance.DeselectObject(); // Desseleciona ao clicar no "ar"
+                    }
+                    isWaitingForSecondClick = false; // Resetar após a tentativa de clique 3D
+                    */
                 }
             }
         }
@@ -419,7 +487,19 @@ public class Functions : MonoBehaviour
                     GameObject selected = SelectionManager.Instance.GetSelectedObject();
                     if (selected != null)
                     {
-                        selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.World);
+                        if (selected.name == "Planta1")
+                        {
+                            selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.Self);
+                            Vector3 euler = selected.transform.eulerAngles;
+                            selected.transform.rotation = Quaternion.Euler(0, euler.y, 0);
+                        }
+                        if(selected.name == "Planta2")
+                        {
+                            Debug.Log(selected.name + " rotacionando");
+                            selected.transform.Rotate(Vector3.up, mouseX * rotationSpeed * Time.deltaTime, Space.World);
+                            //Vector3 euler = selected.transform.eulerAngles;
+                            //selected.transform.rotation = Quaternion.Euler(0, euler.y, 0);
+                        }
                     }
                 }
             }
@@ -1490,26 +1570,26 @@ public class Functions : MonoBehaviour
     }
 
     private void HandleObjectSelected(GameObject obj)
-{
-    Debug.Log($"[Functions] Evento: Objeto '{obj.name}' selecionado.");
-    SetAppState(AppState.ObjectSelected); // Garante que o estado da UI é atualizado
-    StoreOriginalPosition(obj); // Armazena a posição original do *novo* objeto selecionado
-    // infoText.text etc. será atualizado pelo UpdateUIBasedOnState
-}
+    {
+        Debug.Log($"[Functions] Evento: Objeto '{obj.name}' selecionado.");
+        SetAppState(AppState.ObjectSelected); // Garante que o estado da UI é atualizado
+        StoreOriginalPosition(obj); // Armazena a posição original do *novo* objeto selecionado
+                                    // infoText.text etc. será atualizado pelo UpdateUIBasedOnState
+    }
 
-private void HandleObjectDeselected(GameObject obj)
-{
-    Debug.Log($"[Functions] Evento: Objeto '{obj?.name ?? "NULL"}' desselecionado.");
-    // Volte ao AppState.ObjectFound se houver objetos AR visíveis mas nenhum selecionado
-    // Ou AppState.Scanning se não houver mais objetos AR.
-    bool anyARObjectActive = trackedImageHandler.ARObjects.Exists(o => o.activeSelf);
-    if (anyARObjectActive)
+    private void HandleObjectDeselected(GameObject obj)
     {
-        SetAppState(AppState.ObjectFound);
+        Debug.Log($"[Functions] Evento: Objeto '{obj?.name ?? "NULL"}' desselecionado.");
+        // Volte ao AppState.ObjectFound se houver objetos AR visíveis mas nenhum selecionado
+        // Ou AppState.Scanning se não houver mais objetos AR.
+        bool anyARObjectActive = trackedImageHandler.ARObjects.Exists(o => o.activeSelf);
+        if (anyARObjectActive)
+        {
+            SetAppState(AppState.ObjectFound);
+        }
+        else
+        {
+            SetAppState(AppState.Scanning);
+        }
     }
-    else
-    {
-        SetAppState(AppState.Scanning);
-    }
-}
 }
